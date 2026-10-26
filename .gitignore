@@ -32,3 +32,6 @@
 sysinfo.txt
 crashlytics-build.properties
 .DS_Store
+
+# Local copy of the advanced version (kept on the `advanced` branch)
+/AdvancedBackup/
