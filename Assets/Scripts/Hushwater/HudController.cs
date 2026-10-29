@@ -4,6 +4,7 @@ using UnityEngine.UI;
 
 namespace Hushwater
 {
+    // Builds the on-screen HUD in code (bars, text, overlays) and updates it from the player each frame.
     public sealed class HudController : MonoBehaviour
     {
         private const string Controls = "WASD move | Shift sprint | Ctrl/C crouch | Space hold breath | E hide / pick up | Q throw bottle";
@@ -19,6 +20,7 @@ namespace Hushwater
         private RectTransform healthFill;
         private RectTransform breathFill;
 
+        // Creates the canvas and every HUD element. Called once by the bootstrap.
         public void Initialize(PlayerController target, SextonController enemy)
         {
             player = target;
@@ -71,6 +73,7 @@ namespace Hushwater
             }
         }
 
+        // The context hint in the middle of the screen, most important first.
         private string PromptText()
         {
             if (player.IsDead) return "";
@@ -79,6 +82,7 @@ namespace Hushwater
             return player.NearHideSpot ? "E to hide in the wardrobe" : "";
         }
 
+        // A full-screen image used for the red hurt flash and the black fade.
         private static Image MakeOverlay(Transform parent, Color color)
         {
             Image image = new GameObject("Overlay").AddComponent<Image>();
@@ -106,6 +110,7 @@ namespace Hushwater
             return text;
         }
 
+        // A dark background bar with a coloured fill; the HUD shrinks the fill by moving its anchorMax.
         private static RectTransform MakeBar(Transform parent, Vector2 position, Color color)
         {
             Image background = new GameObject("Bar").AddComponent<Image>();

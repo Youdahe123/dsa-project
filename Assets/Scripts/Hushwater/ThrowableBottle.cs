@@ -2,11 +2,13 @@ using UnityEngine;
 
 namespace Hushwater
 {
+    // A bottle thrown with Q. It shatters on first impact and lures the Sexton to that spot.
     public sealed class ThrowableBottle : MonoBehaviour
     {
         [SerializeField] private float noiseRadius = 22f;
         private bool landed;
 
+        // Spawns a bottle with a physics body and launches it forward with a slight upward arc.
         public static void Throw(Vector3 position, Vector3 direction)
         {
             GameObject bottle = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -20,6 +22,7 @@ namespace Hushwater
             bottle.AddComponent<ThrowableBottle>();
         }
 
+        // Clean up bottles that never hit anything.
         private void Start() => Destroy(gameObject, 8f);
 
         private void OnCollisionEnter(Collision collision)

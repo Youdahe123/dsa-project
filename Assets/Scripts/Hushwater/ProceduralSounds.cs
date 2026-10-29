@@ -35,6 +35,7 @@ namespace Hushwater
 
         private static float Noise() => Random.value * 2f - 1f;
 
+        // Samples a wave function (time in seconds -> -1..1) into a mono AudioClip.
         private static AudioClip Make(string name, float seconds, System.Func<float, float> wave)
         {
             float[] data = new float[(int)(Rate * seconds)];
