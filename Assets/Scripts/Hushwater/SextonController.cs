@@ -7,6 +7,8 @@ namespace Hushwater
     // The blind Sexton: reacts only to noise pulses that reach him.
     public sealed class SextonController : MonoBehaviour
     {
+        // Patrol: walks the route. Investigate: walks to a sound. Hunt: runs at the latest sound.
+        // Search: stands and feels around after losing the trail. Kill: holding Nell, game over.
         private enum State { Patrol, Investigate, Hunt, Search, Kill }
 
         [SerializeField] private float walkSpeed = 1.6f;
@@ -35,6 +37,7 @@ namespace Hushwater
 
         public string StateName => state.ToString().ToUpperInvariant();
 
+        // Called by the bootstrap: builds the body, adds the NavMeshAgent and starts listening.
         public void Setup(PlayerController target, Vector3[] points)
         {
             player = target;
@@ -97,6 +100,7 @@ namespace Hushwater
             body.Animate(agent.velocity.magnitude, state == State.Hunt, Time.deltaTime);
         }
 
+        // Runs for every noise in the world; ignores anything out of earshot.
         private void HearNoise(NoiseEvent noise)
         {
             if (state == State.Kill) return;
@@ -128,6 +132,7 @@ namespace Hushwater
             agent.SetDestination(point);
         }
 
+        // Changes state and sets his speed; he stands still while searching or killing.
         private void SetState(State next)
         {
             state = next;
@@ -177,6 +182,7 @@ namespace Hushwater
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(d), 360f * Time.deltaTime);
         }
 
+        // Flat distance to the player, ignoring height.
         private float PlayerDistance()
         {
             Vector3 d = player.transform.position - transform.position;
@@ -184,6 +190,7 @@ namespace Hushwater
             return d.magnitude;
         }
 
+        // True once the agent has reached its current destination.
         private bool Arrived() => !agent.pathPending && agent.remainingDistance < 0.6f;
 
         // Placeholder knocking: slow while patrolling, fast while hunting.

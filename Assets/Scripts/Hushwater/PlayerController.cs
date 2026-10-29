@@ -4,6 +4,7 @@ using UnityEngine;
 namespace Hushwater
 {
     [RequireComponent(typeof(CharacterController))]
+    // Nell: first-person movement, breath, hiding, pickups, bottle throwing, and her death animation.
     public sealed class PlayerController : MonoBehaviour
     {
         public const int EvidenceNeeded = 3;
@@ -103,6 +104,7 @@ namespace Hushwater
             if (Evidence >= EvidenceNeeded && Vector3.Distance(transform.position, exitPoint) < 2.5f) Escaped = true;
         }
 
+        // Mouse look: yaw turns the body, pitch tilts only the camera.
         private void Look()
         {
             if (Cursor.lockState != CursorLockMode.Locked) return;
@@ -146,6 +148,7 @@ namespace Hushwater
             else stepTimer = 0f;
         }
 
+        // Space holds breath, which drains the breath bar. Running out forces a gasp.
         private void UpdateBreath()
         {
             gaspCooldown -= Time.deltaTime;
@@ -164,6 +167,7 @@ namespace Hushwater
             else breath = Mathf.Min(maxBreath, breath + breathRecovery * Time.deltaTime);
         }
 
+        // Hiding turns off movement and parks the camera inside the wardrobe.
         private void EnterWardrobe()
         {
             hiding = true;
@@ -181,6 +185,7 @@ namespace Hushwater
             currentHideSpot = null;
         }
 
+        // Adds the pickup to Nell's inventory and removes it from the world.
         private void Collect(Pickup pickup)
         {
             if (pickup.Type == Pickup.Kind.Evidence) Evidence++;
@@ -190,6 +195,7 @@ namespace Hushwater
             NearbyPickup = null;
         }
 
+        // A non-lethal hit (the Sexton's swipe). Lethal attacks go through Die instead.
         public void TakeDamage(float amount)
         {
             Health = Mathf.Max(0f, Health - amount);
@@ -238,6 +244,7 @@ namespace Hushwater
             ThrowableBottle.Throw(playerCamera.transform.position + playerCamera.transform.forward * 0.8f, playerCamera.transform.forward);
         }
 
+        // Wardrobe triggers tell the player when a hide spot is in reach.
         private void OnTriggerEnter(Collider other)
         {
             HideSpot spot = other.GetComponentInParent<HideSpot>();

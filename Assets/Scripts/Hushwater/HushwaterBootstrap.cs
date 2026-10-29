@@ -39,6 +39,7 @@ namespace Hushwater
             gameObject.AddComponent<HudController>().Initialize(player, sexton);
         }
 
+        // Textured materials shared by the street geometry.
         private void LoadMaterials()
         {
             ground = HushwaterAssets.Surface("brown_mud_02", new Color(0.55f, 0.52f, 0.47f), 8f);
@@ -47,6 +48,7 @@ namespace Hushwater
             iron = HushwaterAssets.Surface("rusty_metal_02", new Color(0.6f, 0.55f, 0.5f));
         }
 
+        // Ground, boundary walls, houses, the gate, and night lighting.
         private void BuildStreet()
         {
             MakeCube("Ground", new Vector3(0f, -0.25f, 4f), new Vector3(30f, 0.5f, 40f), ground);
@@ -127,6 +129,7 @@ namespace Hushwater
             BuildBottle(new Vector3(-10f, 0f, -8f));
         }
 
+        // A street lamp model with a warm point light near the top.
         private static void BuildLamp(Vector3 position, float yaw)
         {
             HushwaterAssets.Model("street_lamp_01", position, yaw, 3.8f);
@@ -151,6 +154,7 @@ namespace Hushwater
             Pickup.Create(photo, Pickup.Kind.Evidence, "photograph");
         }
 
+        // A spare bottle lying on the ground that Nell can pick up and throw later.
         private static void BuildBottle(Vector3 position)
         {
             GameObject bottle = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -175,6 +179,7 @@ namespace Hushwater
             NavMesh.AddNavMeshData(data);
         }
 
+        // Nell: a CharacterController with a camera, audio listener and lantern light at eye height.
         private static PlayerController BuildPlayer()
         {
             GameObject playerObject = new GameObject("Nell");
@@ -210,6 +215,7 @@ namespace Hushwater
             return controller;
         }
 
+        // A box primitive with a shared material, used for all the walls and floors.
         private static GameObject MakeCube(string name, Vector3 position, Vector3 scale, Material material)
         {
             GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
