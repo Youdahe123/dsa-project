@@ -6,6 +6,7 @@ namespace Hushwater.EditorTools
     // Poly Haven textures arrive as plain images; tell Unity which ones are normal and data maps.
     public sealed class HushwaterAssetImport : AssetPostprocessor
     {
+        // Marks normal maps as normal maps and keeps data maps (roughness, metal) linear.
         private void OnPreprocessTexture()
         {
             if (!assetPath.Contains("/Resources/Hushwater/")) return;
@@ -24,6 +25,7 @@ namespace Hushwater.EditorTools
             importer.anisoLevel = 4;
         }
 
+        // Models come in as static meshes: no animation, cameras or lights.
         private void OnPreprocessModel()
         {
             if (!assetPath.Contains("/Resources/Hushwater/")) return;

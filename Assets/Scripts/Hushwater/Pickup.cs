@@ -16,6 +16,7 @@ namespace Hushwater
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics() => All.Clear();
 
+        // Turns any object into a pickup.
         public static Pickup Create(GameObject target, Kind type, string label)
         {
             Pickup pickup = target.AddComponent<Pickup>();
@@ -24,6 +25,7 @@ namespace Hushwater
             return pickup;
         }
 
+        // Pickups register themselves so the player can search them without physics triggers.
         private void OnEnable() => All.Add(this);
         private void OnDisable() => All.Remove(this);
 

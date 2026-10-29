@@ -58,8 +58,10 @@ namespace Hushwater
             agent.SetDestination(patrolPoints[0]);
         }
 
+        // Unsubscribe, or the static event would keep calling a destroyed Sexton.
         private void OnDestroy() => NoisePulse.Emitted -= HearNoise;
 
+        // Runs the current state each frame, then plays the knock and animates the body.
         private void Update()
         {
             if (player == null || agent == null) return;
@@ -126,6 +128,7 @@ namespace Hushwater
             else if (recentSounds.Count == 2) GoTo(State.Investigate, noise.Position);
         }
 
+        // Switches state and walks toward a point in one step.
         private void GoTo(State next, Vector3 point)
         {
             SetState(next);
@@ -140,6 +143,7 @@ namespace Hushwater
             agent.speed = next == State.Hunt ? huntSpeed : next == State.Investigate ? investigateSpeed : walkSpeed;
         }
 
+        // Stops and feels around for a few seconds; a fresh start for the sound counter.
         private void StartSearch(float seconds)
         {
             recentSounds.Clear();
@@ -147,6 +151,7 @@ namespace Hushwater
             SetState(State.Search);
         }
 
+        // Breathing is only audible up close, and not while hidden or holding breath.
         private bool CanHearBreathing() =>
             !player.IsDead && !player.IsHiding && !player.HoldingBreath && PlayerDistance() < breathHearing;
 
@@ -174,6 +179,7 @@ namespace Hushwater
             player.Die(body);
         }
 
+        // Turns in place to face Nell while holding her.
         private void FacePlayer()
         {
             Vector3 d = player.transform.position - transform.position;

@@ -45,6 +45,7 @@ namespace Hushwater
             endText = MakeText(canvas.transform, "", 48, new Vector2(0.5f, 0.5f), Vector2.zero, TextAnchor.MiddleCenter);
         }
 
+        // Refreshes bars, text and overlays from the player every frame, and handles restart.
         private void Update()
         {
             if (player == null) return;
@@ -95,6 +96,7 @@ namespace Hushwater
             return image;
         }
 
+        // A legacy UI Text pinned to a screen corner or the centre (anchor) at a pixel offset.
         private static Text MakeText(Transform parent, string value, int size, Vector2 anchor, Vector2 position, TextAnchor alignment)
         {
             Text text = new GameObject("Text").AddComponent<Text>();

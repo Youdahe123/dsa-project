@@ -11,6 +11,7 @@ namespace Hushwater
         // Lures (thrown bottles) send the Sexton straight to investigate, skipping the 2-and-3 sound rule.
         public readonly bool IsLure;
 
+        // Packs one sound into an event.
         public NoiseEvent(Vector3 position, float radius, bool isLure)
         {
             Position = position;

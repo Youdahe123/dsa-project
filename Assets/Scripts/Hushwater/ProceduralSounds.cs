@@ -33,6 +33,7 @@ namespace Hushwater
         // Plays a clip at a point in the world (3D) without keeping an AudioSource around.
         public static void PlayAt(AudioClip clip, Vector3 position, float volume = 1f) => AudioSource.PlayClipAtPoint(clip, position, volume);
 
+        // White noise sample between -1 and 1.
         private static float Noise() => Random.value * 2f - 1f;
 
         // Samples a wave function (time in seconds -> -1..1) into a mono AudioClip.

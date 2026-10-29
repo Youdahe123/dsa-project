@@ -28,6 +28,7 @@ namespace Hushwater
                 new GameObject("Hushwater Runtime").AddComponent<HushwaterBootstrap>();
         }
 
+        // Build order matters: geometry first, then the NavMesh bake, then the agents that walk on it.
         private void Start()
         {
             LoadMaterials();
@@ -92,6 +93,7 @@ namespace Hushwater
             if (withWardrobe) BuildWardrobe(new Vector3(centre.x - facing * 2.3f, 1f, centre.z + 1.5f), facing);
         }
 
+        // Places the wardrobe model plus an invisible trigger that makes it a HideSpot.
         private void BuildWardrobe(Vector3 position, float facing)
         {
             // The cabinet model faces the doorway; the hide spot itself is an invisible trigger around it.
@@ -141,6 +143,7 @@ namespace Hushwater
             light.intensity = 1.1f;
         }
 
+        // A photograph on the floor that counts toward the evidence goal.
         private static void BuildEvidence(Vector3 position)
         {
             GameObject photo = HushwaterAssets.Model("hanging_picture_frame_01", position, Random.Range(0f, 360f), 0.45f, false);
@@ -205,6 +208,7 @@ namespace Hushwater
             return player;
         }
 
+        // Creates the Sexton at the north end of the street and gives him his patrol route.
         private SextonController BuildSexton(PlayerController player)
         {
             // The body is built by SextonController.Setup; this root is what the NavMeshAgent moves.

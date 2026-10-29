@@ -51,6 +51,7 @@ namespace Hushwater
         // 0 to 1 while the death animation fades the screen out.
         public float DeathFade { get; private set; }
 
+        // Caches components, fills the breath bar and locks the mouse for first-person look.
         private void Awake()
         {
             controller = GetComponent<CharacterController>();
@@ -65,6 +66,7 @@ namespace Hushwater
         // Where Nell has to bring the evidence to finish the night.
         public void SetExit(Vector3 point) => exitPoint = point;
 
+        // Main input loop. Death and escape stop all input; the kill animation runs on its own.
         private void Update()
         {
             HurtFlash = Mathf.MoveTowards(HurtFlash, 0f, Time.deltaTime * 1.5f);
@@ -113,6 +115,7 @@ namespace Hushwater
             playerCamera.transform.localRotation = Quaternion.Euler(pitch, 0f, 0f);
         }
 
+        // Walking, crouching and sprinting, plus the footstep noise each one makes.
         private void Move()
         {
             // Crouch is a toggle, as in the design doc's controls table.
@@ -177,6 +180,7 @@ namespace Hushwater
             playerCamera.transform.localPosition = new Vector3(0f, 0.65f, 0f);
         }
 
+        // Puts Nell back in the world at the wardrobe's exit point.
         private void LeaveWardrobe()
         {
             hiding = false;
@@ -238,6 +242,7 @@ namespace Hushwater
             DeathFade = 1f;
         }
 
+        // Throws from just in front of the camera, in the direction Nell is looking.
         private void ThrowBottle()
         {
             Bottles--;
@@ -251,6 +256,7 @@ namespace Hushwater
             if (spot != null) nearbyHideSpot = spot;
         }
 
+        // Forget the hide spot once Nell walks out of its trigger.
         private void OnTriggerExit(Collider other)
         {
             if (other.GetComponentInParent<HideSpot>() == nearbyHideSpot) nearbyHideSpot = null;
