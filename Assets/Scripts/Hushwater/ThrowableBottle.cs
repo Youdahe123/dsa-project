@@ -28,6 +28,7 @@ namespace Hushwater
             landed = true;
             // A lure: the Sexton walks straight to where it lands.
             NoisePulse.Emit(transform.position, noiseRadius, true);
+            ProceduralSounds.PlayAt(ProceduralSounds.Shatter, transform.position);
             Destroy(gameObject, 0.2f);
         }
     }

@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 namespace Hushwater
@@ -5,6 +6,10 @@ namespace Hushwater
     [RequireComponent(typeof(CharacterController))]
     public sealed class PlayerController : MonoBehaviour
     {
+        public const int EvidenceNeeded = 3;
+        private const int MaxBottles = 5;
+        private const float PickupReach = 2f;
+
         [Header("Movement")]
         [SerializeField] private float walkSpeed = 3.2f;
         [SerializeField] private float sprintSpeed = 6f;
@@ -17,6 +22,8 @@ namespace Hushwater
 
         private CharacterController controller;
         private Camera playerCamera;
+        private AudioSource stepSource;
+        private Vector3 exitPoint;
         private float verticalVelocity;
         private float pitch;
         private float breath;
@@ -34,21 +41,33 @@ namespace Hushwater
         public bool HoldingBreath { get; private set; }
         public bool IsDead => Health <= 0f;
         public int Bottles { get; private set; } = 3;
+        public int Evidence { get; private set; }
+        public bool Escaped { get; private set; }
         public bool NearHideSpot => nearbyHideSpot != null;
+        public Pickup NearbyPickup { get; private set; }
+        // 1 right after a hit, fading to 0; the HUD tints the screen red with it.
+        public float HurtFlash { get; private set; }
+        // 0 to 1 while the death animation fades the screen out.
+        public float DeathFade { get; private set; }
 
         private void Awake()
         {
             controller = GetComponent<CharacterController>();
             controller.stepOffset = 0.4f;
             playerCamera = GetComponentInChildren<Camera>();
+            stepSource = gameObject.AddComponent<AudioSource>();
             breath = maxBreath;
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }
 
+        // Where Nell has to bring the evidence to finish the night.
+        public void SetExit(Vector3 point) => exitPoint = point;
+
         private void Update()
         {
-            if (IsDead) return;
+            HurtFlash = Mathf.MoveTowards(HurtFlash, 0f, Time.deltaTime * 1.5f);
+            if (IsDead || Escaped) return;
 
             if (Input.GetKeyDown(KeyCode.Escape))
             {
@@ -71,8 +90,17 @@ namespace Hushwater
 
             Look();
             Move();
-            if (nearbyHideSpot != null && Input.GetKeyDown(KeyCode.E)) EnterWardrobe();
+
+            // E picks up whatever is closest first, otherwise hides.
+            NearbyPickup = Pickup.Nearest(transform.position, PickupReach);
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+                if (NearbyPickup != null) Collect(NearbyPickup);
+                else if (nearbyHideSpot != null) EnterWardrobe();
+            }
             if (Input.GetKeyDown(KeyCode.Q) && Bottles > 0) ThrowBottle();
+
+            if (Evidence >= EvidenceNeeded && Vector3.Distance(transform.position, exitPoint) < 2.5f) Escaped = true;
         }
 
         private void Look()
@@ -111,6 +139,7 @@ namespace Hushwater
                 {
                     float radius = crouching ? NoisePulse.Creep : sprinting ? NoisePulse.Sprint : NoisePulse.Walk;
                     NoisePulse.Emit(transform.position, radius);
+                    stepSource.PlayOneShot(ProceduralSounds.Step, crouching ? 0.15f : sprinting ? 0.8f : 0.4f);
                     stepTimer = sprinting ? 0.3f : crouching ? 0.6f : 0.45f;
                 }
             }
@@ -152,7 +181,56 @@ namespace Hushwater
             currentHideSpot = null;
         }
 
-        public void TakeDamage(float amount) => Health = Mathf.Max(0f, Health - amount);
+        private void Collect(Pickup pickup)
+        {
+            if (pickup.Type == Pickup.Kind.Evidence) Evidence++;
+            else if (Bottles < MaxBottles) Bottles++;
+            else return; // pockets full, leave the bottle where it is
+            Destroy(pickup.gameObject);
+            NearbyPickup = null;
+        }
+
+        public void TakeDamage(float amount)
+        {
+            Health = Mathf.Max(0f, Health - amount);
+            HurtFlash = 1f;
+        }
+
+        // Called by the Sexton when he grabs Nell. Plays the kill animation, then the HUD shows game over.
+        public void Die(SextonBody killer)
+        {
+            if (IsDead) return;
+            Health = 0f;
+            HoldingBreath = false;
+            HurtFlash = 1f;
+            StartCoroutine(KillAnimation(killer));
+        }
+
+        // Nell is pulled out of hiding, turned to face the Sexton, lifted toward his hands and shaken, then the screen goes dark.
+        private IEnumerator KillAnimation(SextonBody killer)
+        {
+            if (hiding) LeaveWardrobe();
+            controller.enabled = false;
+            stepSource.PlayOneShot(ProceduralSounds.Sting, 1f);
+
+            Vector3 start = transform.position;
+            Vector3 eye = playerCamera.transform.localPosition;
+            for (float time = 0f; time < 2.4f; time += Time.deltaTime)
+            {
+                // 0 to 0.8 s: dragged up to his grip. 0.8 to 1.8 s: shaken. Then the fade finishes.
+                float lift = Mathf.SmoothStep(0f, 1f, time / 0.8f);
+                float shake = time > 0.8f && time < 1.8f ? 0.06f : 0.01f;
+                transform.position = Vector3.Lerp(start, killer.GripPoint - eye, lift) + Random.insideUnitSphere * shake;
+
+                Vector3 toHead = killer.Head.position - playerCamera.transform.position;
+                Quaternion look = Quaternion.LookRotation(toHead) * Quaternion.Euler(0f, 0f, Mathf.Sin(time * 25f) * shake * 60f);
+                playerCamera.transform.rotation = Quaternion.Slerp(playerCamera.transform.rotation, look, Time.deltaTime * 8f);
+
+                DeathFade = Mathf.Clamp01((time - 1.5f) / 0.9f);
+                yield return null;
+            }
+            DeathFade = 1f;
+        }
 
         private void ThrowBottle()
         {
