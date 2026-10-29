@@ -18,6 +18,7 @@ namespace Hushwater
         public Vector3 GripPoint => transform.position + transform.forward * 1.25f + Vector3.up * 1.85f;
         public Transform Head => head;
 
+        // Builds the whole body as children of root (the NavMeshAgent object) and returns its animator.
         public static SextonBody Build(Transform root)
         {
             Material cloth = HushwaterAssets.Surface("worn_mossy_plasterwall", new Color(0.12f, 0.11f, 0.1f));
@@ -52,6 +53,7 @@ namespace Hushwater
             return body;
         }
 
+        // A shoulder pivot with a sleeve and a hand; rotating the pivot swings the whole arm.
         private static Transform Arm(Transform torso, float side, Material cloth, Material skin)
         {
             Transform shoulder = Pivot(torso, side < 0f ? "Left Arm" : "Right Arm", new Vector3(side * 0.36f, 0.85f, 0f));
@@ -60,6 +62,7 @@ namespace Hushwater
             return shoulder;
         }
 
+        // An empty transform used as a joint to rotate parts around.
         private static Transform Pivot(Transform parent, string name, Vector3 local)
         {
             Transform pivot = new GameObject(name).transform;
@@ -68,6 +71,7 @@ namespace Hushwater
             return pivot;
         }
 
+        // One visible piece of the body: a primitive with a shared material.
         private static GameObject Part(PrimitiveType type, Transform parent, string name, Vector3 local, Vector3 scale, Material material)
         {
             GameObject part = GameObject.CreatePrimitive(type);
@@ -79,8 +83,10 @@ namespace Hushwater
             return part;
         }
 
+        // Starts a one-off hook swipe with the right arm; it fades back over about 0.4 s.
         public void Swipe() => swipe = 1f;
 
+        // Raises both arms toward Nell and holds them there for the kill.
         public void Grab() => grabbing = true;
 
         // Called every frame by SextonController with his current speed.

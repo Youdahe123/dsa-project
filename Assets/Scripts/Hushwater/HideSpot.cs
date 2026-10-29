@@ -10,6 +10,7 @@ namespace Hushwater
 
         public Transform ExitPoint => exitPoint != null ? exitPoint : transform;
 
+        // Set by the bootstrap when it builds the wardrobe.
         public void SetExitPoint(Transform point) => exitPoint = point;
     }
 }

@@ -25,6 +25,7 @@ namespace Hushwater
         // Clean up bottles that never hit anything.
         private void Start() => Destroy(gameObject, 8f);
 
+        // Only the first impact counts, so a bouncing bottle makes one noise.
         private void OnCollisionEnter(Collision collision)
         {
             if (landed) return;
