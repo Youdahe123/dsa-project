@@ -7,20 +7,24 @@ namespace Hushwater
     // The blind Sexton: reacts only to noise pulses that reach him.
     public sealed class SextonController : MonoBehaviour
     {
-        private enum State { Patrol, Investigate, Hunt, Search }
+        private enum State { Patrol, Investigate, Hunt, Search, Kill }
 
         [SerializeField] private float walkSpeed = 1.6f;
         [SerializeField] private float investigateSpeed = 2.4f;
         [SerializeField] private float huntSpeed = 4.6f;
+        [Header("Attacks (design doc: swipe at 2 m, grab at 1 m)")]
         [SerializeField] private float swipeRange = 2f;
+        [SerializeField] private float grabRange = 1f;
         [SerializeField] private float swipeDamage = 35f;
         [SerializeField] private float swipeCooldown = 1.5f;
+        // How close he has to be to hear Nell breathing. Holding breath hides it.
+        [SerializeField] private float breathHearing = 3f;
 
         private Vector3[] patrolPoints;
         private readonly List<float> recentSounds = new List<float>();
         private NavMeshAgent agent;
         private PlayerController player;
-        private Renderer bodyRenderer;
+        private SextonBody body;
         private AudioSource knockSource;
         private State state;
         private int patrolIndex;
@@ -35,14 +39,14 @@ namespace Hushwater
         {
             player = target;
             patrolPoints = points;
-            bodyRenderer = GetComponentInChildren<Renderer>();
+            body = SextonBody.Build(transform);
             agent = gameObject.AddComponent<NavMeshAgent>();
             agent.radius = 0.4f;
             agent.height = 2.4f;
             agent.angularSpeed = 240f;
             agent.acceleration = 12f;
+            agent.stoppingDistance = 0.3f;
             knockSource = gameObject.AddComponent<AudioSource>();
-            knockSource.clip = MakeKnock();
             knockSource.spatialBlend = 1f;
             knockSource.maxDistance = 40f;
             knockSource.rolloffMode = AudioRolloffMode.Linear;
@@ -67,29 +71,35 @@ namespace Hushwater
                     if (Arrived()) StartSearch(4f);
                     break;
                 case State.Hunt:
-                    TrySwipe();
-                    if (Arrived() && Time.time - lastHeardTime > 1.5f) StartSearch(6f);
+                    // Up close he can hear Nell breathing and closes in on her directly.
+                    if (CanHearBreathing()) agent.SetDestination(player.transform.position);
+                    TryAttack();
+                    if (state == State.Hunt && Arrived() && Time.time - lastHeardTime > 1.5f) StartSearch(6f);
                     break;
                 case State.Search:
                     searchTime -= Time.deltaTime;
                     transform.Rotate(Vector3.up, 60f * Time.deltaTime);
                     // Feels around nearby: a hidden player is only safe while holding their breath.
-                    if (player.IsHiding && !player.HoldingBreath && PlayerDistance() < 2.5f) Catch();
-                    if (searchTime <= 0f)
+                    if (player.IsHiding && !player.HoldingBreath && PlayerDistance() < 2.5f) Grab();
+                    else if (CanHearBreathing()) GoTo(State.Hunt, player.transform.position);
+                    else if (searchTime <= 0f)
                     {
                         SetState(State.Patrol);
                         agent.SetDestination(patrolPoints[patrolIndex % patrolPoints.Length]);
                     }
                     break;
+                case State.Kill:
+                    FacePlayer();
+                    break;
             }
 
             Knock();
-            if (bodyRenderer != null)
-                bodyRenderer.material.color = state == State.Hunt ? new Color(0.35f, 0.04f, 0.04f) : new Color(0.08f, 0.06f, 0.06f);
+            body.Animate(agent.velocity.magnitude, state == State.Hunt, Time.deltaTime);
         }
 
         private void HearNoise(NoiseEvent noise)
         {
+            if (state == State.Kill) return;
             if (Vector3.Distance(transform.position, noise.Position) > noise.Radius) return;
             lastHeardTime = Time.time;
 
@@ -121,7 +131,7 @@ namespace Hushwater
         private void SetState(State next)
         {
             state = next;
-            agent.isStopped = next == State.Search;
+            agent.isStopped = next == State.Search || next == State.Kill;
             agent.speed = next == State.Hunt ? huntSpeed : next == State.Investigate ? investigateSpeed : walkSpeed;
         }
 
@@ -132,16 +142,39 @@ namespace Hushwater
             SetState(State.Search);
         }
 
-        private void TrySwipe()
+        private bool CanHearBreathing() =>
+            !player.IsDead && !player.IsHiding && !player.HoldingBreath && PlayerDistance() < breathHearing;
+
+        // Grab at 1 m kills outright. At 2 m he swipes with the hook; a swipe that would finish Nell becomes a grab.
+        private void TryAttack()
         {
-            if (player.IsHiding || swipeTimer > 0f || PlayerDistance() > swipeRange) return;
+            if (player.IsHiding || player.IsDead) return;
+            float distance = PlayerDistance();
+            if (distance <= grabRange) { Grab(); return; }
+            if (distance > swipeRange || swipeTimer > 0f) return;
+
             swipeTimer = swipeCooldown;
+            if (player.Health <= swipeDamage) { Grab(); return; }
+            body.Swipe();
+            knockSource.PlayOneShot(ProceduralSounds.Knock, 1f);
             player.TakeDamage(swipeDamage);
         }
 
-        private void Catch()
+        // Starts the kill: he stops, raises both hands and the player plays their death animation.
+        private void Grab()
         {
-            player.TakeDamage(player.Health);
+            SetState(State.Kill);
+            agent.velocity = Vector3.zero;
+            body.Grab();
+            player.Die(body);
+        }
+
+        private void FacePlayer()
+        {
+            Vector3 d = player.transform.position - transform.position;
+            d.y = 0f;
+            if (d.sqrMagnitude > 0.01f)
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(d), 360f * Time.deltaTime);
         }
 
         private float PlayerDistance()
@@ -159,21 +192,7 @@ namespace Hushwater
             knockTimer -= Time.deltaTime;
             if (knockTimer > 0f) return;
             knockTimer = state == State.Hunt ? 0.35f : state == State.Investigate ? 0.8f : 1.3f;
-            knockSource.PlayOneShot(knockSource.clip, state == State.Hunt ? 1f : 0.6f);
-        }
-
-        private static AudioClip MakeKnock()
-        {
-            const int rate = 44100;
-            float[] data = new float[rate / 2];
-            for (int i = 0; i < data.Length; i++)
-            {
-                float t = i / (float)rate;
-                data[i] = (Mathf.Sin(2f * Mathf.PI * 180f * t) + 0.5f * Mathf.Sin(2f * Mathf.PI * 410f * t)) * Mathf.Exp(-t * 12f) * 0.6f;
-            }
-            AudioClip clip = AudioClip.Create("Knock", data.Length, 1, rate, false);
-            clip.SetData(data, 0);
-            return clip;
+            knockSource.PlayOneShot(ProceduralSounds.Knock, state == State.Hunt ? 1f : 0.6f);
         }
     }
 }
