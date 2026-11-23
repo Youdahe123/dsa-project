@@ -29,6 +29,7 @@ namespace Hushwater
         private Button resume;
         private SettingsPanel settings;
         private JournalView journal;
+        private Instructions howTo;
 
         public void Build(Transform canvas, NightDirector night)
         {
@@ -47,9 +48,10 @@ namespace Hushwater
             UiKit.Button(p, "Settings", new Vector2(-300f, 50f), new Vector2(420f, 56f), () => settings.Show(true));
             UiKit.Button(p, "Restart night (from the boat)", new Vector2(-300f, -20f), new Vector2(420f, 56f), () => director.Restart());
             UiKit.Button(p, "Main Menu", new Vector2(-300f, -90f), new Vector2(420f, 56f), () => director.MainMenu());
-            UiKit.Button(p, "Quit", new Vector2(-300f, -160f), new Vector2(420f, 56f), NightDirector.Quit);
+            UiKit.Button(p, "How to Play", new Vector2(-300f, -160f), new Vector2(420f, 56f), () => howTo.Show(() => UiKit.Select(resume)));
+            UiKit.Button(p, "Quit", new Vector2(-300f, -230f), new Vector2(420f, 56f), NightDirector.Quit);
             UiKit.Text(p, "Leaving the night loses anything found tonight. The boat is where the game saves.", 16, centre,
-                new Vector2(-300f, -230f), TextAnchor.UpperCenter, new Vector2(520f, 60f), UiKit.Fade(UiKit.Lantern, 0.85f));
+                new Vector2(-300f, -300f), TextAnchor.UpperCenter, new Vector2(520f, 60f), UiKit.Fade(UiKit.Lantern, 0.85f));
 
             UiKit.Text(p, "CONTROLS", 18, centre, new Vector2(330f, 340f), TextAnchor.UpperLeft, new Vector2(560f, 30f), UiKit.Lantern);
             UiKit.Text(p, Controls, 17, centre, new Vector2(330f, 120f), TextAnchor.UpperLeft, new Vector2(560f, 420f), UiKit.Paper).lineSpacing = 1.2f;
@@ -59,6 +61,7 @@ namespace Hushwater
 
             settings = new SettingsPanel(canvas, () => UiKit.Select(resume));
             journal = new JournalView(canvas, () => director.SetJournal(false));
+            howTo = new Instructions(canvas);
             panel.SetActive(false);
             director.PauseChanged += OnPauseChanged;
             director.JournalChanged += OnJournalChanged;
@@ -75,9 +78,13 @@ namespace Hushwater
         {
             panel.SetActive(paused);
             if (!paused && settings.Visible) settings.Show(false);
+            if (!paused) howTo.Hide();
             if (paused) UiKit.Select(resume);
         }
 
         private void OnJournalChanged(bool open) => journal.Show(open);
+
+        // Arrow keys flip How to Play pages (it runs while the game is frozen, so unscaled input only).
+        private void Update() => howTo?.Update();
     }
 }

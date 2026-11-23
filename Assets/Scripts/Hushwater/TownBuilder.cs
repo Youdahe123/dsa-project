@@ -53,28 +53,44 @@ namespace Hushwater
             new BuildingDef("Lock-keeper's house", -9f, 70f, 8f, 10f, 'E', 3f),
             new BuildingDef("Pump house", 9f, 68f, 8f, 8f, 'W', 3.5f),
             new BuildingDef("Radio room", -6f, 92f, 10f, 8f, 'S', 4f),
+            // The back lanes (ours): a second row of buildings behind each side of the road, doors on the lane.
+            new BuildingDef("Weir cottage", -22f, -8f, 6f, 7f, 'E', 3f),
+            new BuildingDef("Tannery", -22f, 6f, 8f, 10f, 'E', 4f),
+            new BuildingDef("Laundry", 22f, -6f, 6f, 8f, 'W', 3f),
+            new BuildingDef("Corner shop", 22f, 10f, 7f, 7f, 'W', 3.2f),
+            new BuildingDef("Parsonage", -22f, 34f, 7f, 8f, 'E', 3.5f),
+            new BuildingDef("Almshouse", 22f, 36f, 6f, 10f, 'W', 3f),
+            new BuildingDef("Post office", 22f, 52f, 7f, 7f, 'W', 3.2f),
+            new BuildingDef("Surgery", -22f, 58f, 6f, 6f, 'E', 3f),
+            new BuildingDef("Dam barracks", -22f, 70f, 7f, 12f, 'E', 3.5f),
+            new BuildingDef("Valve house", 22f, 72f, 6f, 6f, 'W', 3.5f),
+            new BuildingDef("Foreman's office", -21f, 90f, 6f, 6f, 'E', 3f),
+            new BuildingDef("Stores shed", 22f, 92f, 7f, 8f, 'W', 3f),
         };
 
         // The graveyard wall, the spillway channel and the flooded culvert, for the map.
         public static readonly Rect Graveyard = new Rect(4f, 27f, 10f, 16f);
-        public static readonly Rect SpillwayChannel = new Rect(-15f, 79f, 30f, 4f);
+        public static readonly Rect SpillwayChannel = new Rect(-TownLayout.HalfWidth, 79f, 2f * TownLayout.HalfWidth, 4f);
         public static readonly Rect Culvert = new Rect(9f, 86f, 4f, 12f);
 
         // Patrol stops along each district's streets. Evidence sites are added to these.
         private static readonly Vector3[] MillrowPatrol =
         {
             new Vector3(0f, 0f, -10f), new Vector3(-4.5f, 0f, -2f), new Vector3(-4.5f, 0f, 8f), new Vector3(-4.5f, 0f, 14f),
-            new Vector3(0f, 0f, 20f), new Vector3(5f, 0f, 21f), new Vector3(5f, 0f, 12f), new Vector3(4.5f, 0f, 2f)
+            new Vector3(0f, 0f, 20f), new Vector3(5f, 0f, 21f), new Vector3(5f, 0f, 12f), new Vector3(4.5f, 0f, 2f),
+            new Vector3(-15f, 0f, -2f), new Vector3(-15.5f, 0f, 14f), new Vector3(15f, 0f, 2f), new Vector3(15.5f, 0f, -12f)
         };
         private static readonly Vector3[] ChapelPatrol =
         {
             new Vector3(0f, 0f, 28f), new Vector3(-2f, 0f, 36f), new Vector3(-2f, 0f, 44f), new Vector3(3f, 0f, 46f),
-            new Vector3(-2f, 0f, 52f), new Vector3(0f, 0f, 59f), new Vector3(3.5f, 0f, 40f), new Vector3(3.5f, 0f, 33f)
+            new Vector3(-2f, 0f, 52f), new Vector3(0f, 0f, 59f), new Vector3(3.5f, 0f, 40f), new Vector3(3.5f, 0f, 33f),
+            new Vector3(-15.5f, 0f, 30f), new Vector3(-15.5f, 0f, 52f), new Vector3(16f, 0f, 44f), new Vector3(16f, 0f, 58f)
         };
         private static readonly Vector3[] DamPatrol =
         {
             new Vector3(0f, 0f, 66f), new Vector3(-3f, 0f, 70f), new Vector3(3f, 0f, 68f), new Vector3(0f, 0f, 76f),
-            new Vector3(0f, 0f, 86f), new Vector3(-6f, 0f, 86f), new Vector3(4f, 0f, 90f), new Vector3(3f, 0f, 97f)
+            new Vector3(0f, 0f, 86f), new Vector3(-6f, 0f, 86f), new Vector3(4f, 0f, 90f), new Vector3(3f, 0f, 97f),
+            new Vector3(-15.5f, 0f, 66f), new Vector3(-16f, 0f, 92f), new Vector3(16f, 0f, 70f), new Vector3(16f, 0f, 90f)
         };
 
         // Lantern posts per district, in the order they are used (Undertow gets only the first of each).
@@ -86,7 +102,7 @@ namespace Hushwater
         };
 
         private readonly int night;
-        private Material ground, siding, roof, iron, mud, plaster, stone, wood, water, paper, dark;
+        private Material ground, siding, roof, iron, mud, plaster, stone, wood, water, paper, dark, mudStain;
 
         public readonly List<Vector3> PatrolPoints = new List<Vector3>();
         public Vector3 NellStart { get; private set; }
@@ -109,9 +125,11 @@ namespace Hushwater
             BuildMillrow();
             BuildChapelHill();
             BuildDamWorks();
+            BuildBackLanes();
             BuildEvidence();
             BuildLanternPostsAndLadders();
             BuildLighting();
+            Scenery.BuildTown(night);
 
             Boat = TownLayout.BoatPosition(night);
             BuildBoat(Boat);
@@ -138,6 +156,7 @@ namespace Hushwater
             wood = HushwaterAssets.Surface("weathered_plank_siding", new Color(0.35f, 0.3f, 0.25f), 1f);
             paper = new Material(Shader.Find("Standard")) { color = new Color(0.85f, 0.82f, 0.72f) };
             dark = new Material(Shader.Find("Standard")) { color = new Color(0.06f, 0.06f, 0.06f) };
+            mudStain = HushwaterAssets.Surface("brown_mud_02", new Color(0.24f, 0.2f, 0.14f), 1f, 0.05f);
             water = Transparent(new Color(UiKit.Lake.r * 0.6f, UiKit.Lake.g * 0.6f, UiKit.Lake.b * 0.6f, 0.72f));
         }
 
@@ -163,14 +182,14 @@ namespace Hushwater
         {
             float length = TownLayout.DamWall - TownLayout.MillrowStart;
             float midZ = (TownLayout.DamWall + TownLayout.MillrowStart) * 0.5f;
-            Cube("Ground", new Vector3(0f, -0.25f, midZ), new Vector3(30f, 0.5f, length), ground);
-            Wall("West Edge", new Vector3(-15f, 2f, midZ), new Vector3(0.5f, 4f, length), stone);
-            Wall("East Edge", new Vector3(15f, 2f, midZ), new Vector3(0.5f, 4f, length), stone);
+            Cube("Ground", new Vector3(0f, -0.25f, midZ), new Vector3(2f * TownLayout.HalfWidth, 0.5f, length), ground);
+            Wall("West Edge", new Vector3(-TownLayout.HalfWidth, 2f, midZ), new Vector3(0.5f, 4f, length), stone);
+            Wall("East Edge", new Vector3(TownLayout.HalfWidth, 2f, midZ), new Vector3(0.5f, 4f, length), stone);
             // A low quay wall: the lake is visible beyond it.
-            Cube("Quay", new Vector3(0f, 0.5f, TownLayout.MillrowStart), new Vector3(30f, 1f, 0.5f), stone);
+            Cube("Quay", new Vector3(0f, 0.5f, TownLayout.MillrowStart), new Vector3(2f * TownLayout.HalfWidth, 1f, 0.5f), stone);
 
             // The dam: a landmark you can see from everywhere.
-            Wall("The Dam", new Vector3(0f, 7f, TownLayout.DamWall + 1f), new Vector3(34f, 14f, 2f), stone);
+            Wall("The Dam", new Vector3(0f, 7f, TownLayout.DamWall + 1f), new Vector3(2f * TownLayout.HalfWidth + 4f, 14f, 2f), stone);
 
             // Districts that aren't open yet are blocked by rubble.
             float north = TownLayout.NorthLimit(night);
@@ -179,20 +198,20 @@ namespace Hushwater
             // Past the shoreline the town is under the lake. On Night 3 the flooded street can be swum.
             float shore = TownLayout.Shoreline(night);
             if (shore > TownLayout.MillrowStart && !TownLayout.FloodSwimmable(night))
-                Invisible("Lake Edge", new Vector3(0f, 2f, shore - 0.3f), new Vector3(30f, 6f, 0.4f));
+                Invisible("Lake Edge", new Vector3(0f, 2f, shore - 0.3f), new Vector3(2f * TownLayout.HalfWidth, 6f, 0.4f));
         }
 
         // A tumble of beams and stone across the street, plus an invisible wall so the gap can't be climbed.
         private void Rubble(float z)
         {
-            for (int i = 0; i < 9; i++)
+            for (int i = 0; i < 17; i++)
             {
-                float x = -13f + i * 3.25f;
+                float x = -TownLayout.HalfWidth + 2f + i * 3.25f;
                 GameObject block = Cube("Rubble", new Vector3(x, 1.2f, z + Random.Range(-0.4f, 0.4f)),
                     new Vector3(3.4f, 2.4f + Random.Range(0f, 1.2f), 1.4f), i % 2 == 0 ? stone : wood);
                 block.transform.rotation = Quaternion.Euler(Random.Range(-8f, 8f), Random.Range(-20f, 20f), Random.Range(-6f, 6f));
             }
-            Invisible("District Closed", new Vector3(0f, 3f, z), new Vector3(30f, 6f, 1.8f));
+            Invisible("District Closed", new Vector3(0f, 3f, z), new Vector3(2f * TownLayout.HalfWidth, 6f, 1.8f));
         }
 
         // The reservoir: a sheet of water south of the shoreline at tonight's level.
@@ -213,7 +232,7 @@ namespace Hushwater
             if (TownLayout.FloodSwimmable(night))
             {
                 WaterVolume.Add(new Bounds(new Vector3(0f, (level - 1f) * 0.5f, (shore + TownLayout.MillrowStart) * 0.5f),
-                    new Vector3(30f, level + 1f, shore - TownLayout.MillrowStart)));
+                    new Vector3(2f * TownLayout.HalfWidth, level + 1f, shore - TownLayout.MillrowStart)));
                 // Design doc: "Eels of the Cellars. Found in flooded rooms."
                 Eel.Build(new Vector3(0f, 0.9f, -12f), new Vector3(0f, 0.9f, -6f));
             }
@@ -269,13 +288,26 @@ namespace Hushwater
             if (!door)
             {
                 Wall(name + " Wall", centre + Vector3.up * height * 0.5f, Size(length + t, height), material);
+                SiltBand(centre, Size(length + t, 0f));
                 return;
             }
             float side = (length - 2f) * 0.5f;
-            Wall(name + " Wall", centre - axis * (1f + side * 0.5f) + Vector3.up * height * 0.5f, Size(side + t * 0.5f, height), material);
-            Wall(name + " Wall", centre + axis * (1f + side * 0.5f) + Vector3.up * height * 0.5f, Size(side + t * 0.5f, height), material);
+            foreach (float dir in new[] { -1f, 1f })
+            {
+                Vector3 at = centre + axis * dir * (1f + side * 0.5f);
+                Wall(name + " Wall", at + Vector3.up * height * 0.5f, Size(side + t * 0.5f, height), material);
+                SiltBand(at, Size(side + t * 0.5f, 0f));
+            }
             float lintel = height - 2.2f;
             if (lintel > 0.05f) Wall(name + " Lintel", centre + Vector3.up * (2.2f + lintel * 0.5f), Size(2f, lintel), material);
+        }
+
+        // The flood's mark: a band of dried silt caked on the foot of a wall, a little proud of it on both faces.
+        private void SiltBand(Vector3 centre, Vector3 size)
+        {
+            float band = 0.55f + Mathf.PerlinNoise(centre.x * 0.3f, centre.z * 0.3f) * 0.5f;
+            GameObject stain = Cube("Silt Line", new Vector3(centre.x, band * 0.5f, centre.z), new Vector3(size.x + 0.04f, band, size.z + 0.04f), mudStain);
+            Object.DestroyImmediate(stain.GetComponent<Collider>());
         }
 
         // True if any part of a footprint is in tonight's town (closed districts aren't built at all).
@@ -290,7 +322,7 @@ namespace Hushwater
 
         private void BuildMillrow()
         {
-            if (!NearOpen(new Vector3(0f, 0f, 4f), new Vector2(30f, 40f))) return;
+            if (!NearOpen(new Vector3(0f, 0f, 4f), new Vector2(2f * TownLayout.HalfWidth, 40f))) return;
             bool flooded = night >= 3;
 
             Wardrobe(new Vector3(-11.3f, 1f, -6f), Vector3.right, "hide:holloway");
@@ -420,6 +452,138 @@ namespace Hushwater
             }
         }
 
+        // ---------- The back lanes (ours) ----------
+
+        // A second row of buildings behind each side of the road: more places to hide, salvage, and the town's
+        // own words left lying about. Readables tell the story; none of them count as evidence.
+        private void BuildBackLanes()
+        {
+            // Millrow
+            Furniture("Table", new Vector3(-21.5f, 0.4f, -7f), new Vector3(1.4f, 0.8f, 0.9f));
+            Note(new Vector3(-21.5f, 0.81f, -7f), 10f, "Water Authority letter",
+                "To the occupier, Weir Cottage.\n\nThe Authority regrets that the compensation offered for your property is final. Gates will close on the date previously advised. You are reminded that occupation after that date is at your own risk.\n\nSomeone has written across the bottom in pencil: WE ARE NOT LEAVING.");
+            Wardrobe(new Vector3(-24.3f, 1f, -9.8f), Vector3.right, "hide:weir");
+
+            foreach (float z in new[] { 3f, 6f, 9f })
+                Barrel(new Vector3(-24.4f, 0f, z), 0.75f);
+            RottenFloor.Build(new Vector3(-20.5f, 0f, 8.5f), new Vector2(2f, 2f), wood);
+            Note(new Vector3(-20.5f, 1.6f, 1.17f), 180f, "notice to tannery hands",
+                "NOTICE\n\nWages for the final fortnight will be paid on completion of works. Hands who leave before the gates are shut forfeit them.\n\nBy order. The Mill Company.", true);
+            Cache(new Vector3(-23.5f, 0f, 1.8f), 30f);
+            if (night >= 2) Mud(new Vector3(-15.5f, 0f, 6f), 1.8f, true);
+
+            // The laundry yard: sheets still pegged out across the lane. They hide you from nothing, but they hide him too.
+            Furniture("Copper", new Vector3(23.5f, 0.45f, -4f), new Vector3(1.1f, 0.9f, 1.1f), iron);
+            Wardrobe(new Vector3(24.3f, 1f, -8.6f), Vector3.left, "hide:laundry");
+            for (int i = 0; i < 4; i++) Sheet(new Vector3(13.5f + i * 1.3f, 0f, -13.5f));
+            for (int i = 0; i < 3; i++) Sheet(new Vector3(13.8f + i * 1.3f, 0f, 0.5f));
+            Note(new Vector3(23.5f, 0.92f, -4f), 0f, "laundry slip",
+                "Holloway, 6 shirts. Petrov, 4 sheets, 1 tablecloth (stain). Lisle, christening gown, take care.\n\nCollect Tuesday.");
+
+            Furniture("Shop Counter", new Vector3(19.8f, 0.5f, 10f), new Vector3(0.8f, 1f, 4f));
+            Furniture("Shelves", new Vector3(24.9f, 1.1f, 10f), new Vector3(0.5f, 2.2f, 5f));
+            Note(new Vector3(19.8f, 1.01f, 9.2f), 90f, "shop ledger",
+                "On tick, week of the flood:\nDunne - flour, lamp oil.\nBramley - candles x12.\nAbel Crane - 40 ft rope, 2 padlocks, nails. Paid in full, which he never does.");
+            Item(new Vector3(23.8f, 0f, 12.5f), Pickup.Kind.LampOil);
+            Item(new Vector3(16f, 0f, 7f), Pickup.Kind.Bottle);
+            StreetLamp(new Vector3(-15.8f, 0f, -4f), 90f);
+            StreetLamp(new Vector3(15.8f, 0f, 14f), -90f);
+
+            // Chapel Hill
+            if (night >= 2)
+            {
+                Furniture("Writing Desk", new Vector3(-24.6f, 0.4f, 33f), new Vector3(0.9f, 0.8f, 1.6f));
+                Furniture("Bookcase", new Vector3(-22f, 1.1f, 37.5f), new Vector3(3f, 2.2f, 0.5f));
+                Note(new Vector3(-24.6f, 0.81f, 33.3f), 90f, "sermon notes",
+                    "\"And the waters prevailed upon the earth.\" No. Not that one. Not this Sunday.\n\nAbel asks again whether the bell may be rung on the day. I have told him the Authority forbids it. He says the dead will not know to come home without it.");
+                Wardrobe(new Vector3(-19.3f, 1f, 30.7f), Vector3.forward, "hide:parsonage");
+
+                for (int i = 0; i < 4; i++) Furniture("Bed", new Vector3(23.6f, 0.3f, 32.5f + i * 2.3f), new Vector3(2f, 0.6f, 1f));
+                Note(new Vector3(21f, 1.7f, 31.17f), 180f, "matron's roll", "ALMSHOUSE ROLL\n\nMrs. Teague - will not be moved.\nOld Mr. Ochs - will not be moved.\nMiss Penn - asleep. Let her sleep.\n\nThe lorry did not come.", true);
+                Congregation(new Vector3(21.5f, 0f, 40f), 270f);
+                if (night >= 3) Moths(new Vector3(22f, 2.6f, 36f));
+
+                Furniture("Post Counter", new Vector3(19.8f, 0.5f, 52f), new Vector3(0.8f, 1f, 4.5f));
+                Furniture("Sorting Rack", new Vector3(25f, 1.2f, 52f), new Vector3(0.4f, 2.4f, 4f));
+                Note(new Vector3(19.8f, 1.01f, 51f), 90f, "undelivered letter",
+                    "Dear Emil,\n\nThey say you are still in the valley with your machine, writing everyone down. Come out, son. Whatever you think you owe them, the water won't care.\n\nYour mother.");
+                Item(new Vector3(23.5f, 0f, 49.6f), Pickup.Kind.Wire);
+                Cache(new Vector3(16.5f, 0f, 47f), -40f);
+
+                Furniture("Examination Bed", new Vector3(-24f, 0.4f, 58f), new Vector3(1f, 0.8f, 2.2f));
+                Furniture("Medicine Cabinet", new Vector3(-22f, 1f, 60.6f), new Vector3(2f, 2f, 0.4f));
+                Note(new Vector3(-20.3f, 0.81f, 56f), 0f, "doctor's daybook",
+                    "Tues. Called to the chapel house at 4. A. Crane, bell-ringer, refusing to leave the tower. Pulse fast, hands raw from the rope.\n\nHe asked me to bind his eyes. He said he would rather not see it come.");
+                Furniture("Daybook Table", new Vector3(-20.3f, 0.4f, 56f), new Vector3(1f, 0.8f, 0.8f));
+                Item(new Vector3(-23.8f, 0f, 55.8f), Pickup.Kind.Salts);
+                StreetLamp(new Vector3(-15.8f, 0f, 44f), 90f);
+                StreetLamp(new Vector3(15.8f, 0f, 45f), -90f);
+            }
+
+            // The Dam Works
+            if (night >= 3)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    Furniture("Bunk", new Vector3(-24.6f, 0.45f, 65.5f + i * 2.6f), new Vector3(1f, 0.9f, 2f));
+                    Furniture("Bunk", new Vector3(-24.6f, 1.5f, 65.5f + i * 2.6f), new Vector3(1f, 0.12f, 2f));
+                }
+                Wardrobe(new Vector3(-19.3f, 1f, 75.3f), Vector3.back, "hide:barracks");
+                RottenFloor.Build(new Vector3(-21f, 0f, 70f), new Vector2(1.8f, 1.8f), wood);
+                Note(new Vector3(-18.67f, 1.7f, 66f), 90f, "duty roster",
+                    "GATE CREW, FINAL WEEK\n\nMon. Varga, Quinn, Rallys.\nTues. Varga, Quinn - ALL GATES 0600.\n\nThe name Varga has been crossed out, then written in again, harder.", true);
+                Congregation(new Vector3(-21f, 0f, 73.5f), 90f);
+
+                GameObject valve = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                valve.name = "Valve Wheel";
+                valve.transform.SetPositionAndRotation(new Vector3(24.4f, 1.4f, 72f), Quaternion.Euler(0f, 0f, 90f));
+                valve.transform.localScale = new Vector3(1.6f, 0.06f, 1.6f);
+                valve.GetComponent<Renderer>().sharedMaterial = iron;
+                Furniture("Pipe", new Vector3(22f, 0.5f, 74.4f), new Vector3(5f, 0.6f, 0.6f), iron);
+                Note(new Vector3(21.5f, 1.7f, 69.17f), 180f, "valve log", "VALVE HOUSE LOG\n\n05:40 all clear.\n05:52 bell ringing at chapel. Told to ignore.\n06:00 gates.\n06:04 still ringing.\n06:31 still ringing.", true);
+                Item(new Vector3(20.5f, 0f, 73f), Pickup.Kind.Brass);
+
+                Furniture("Foreman's Desk", new Vector3(-23.2f, 0.4f, 90f), new Vector3(0.9f, 0.8f, 1.8f));
+                Note(new Vector3(-23.2f, 0.81f, 90.4f), 90f, "telegram",
+                    "AUTHORITY TO FOREMAN STOP VALLEY CONFIRMED CLEAR STOP PROCEED STOP\n\nIn the margin, in the foreman's hand: It is not clear. I can hear the bell from here.");
+                Cache(new Vector3(-19.5f, 0f, 88f), 10f);
+
+                for (int i = 0; i < 5; i++) Cache(new Vector3(24f - (i % 2) * 1.2f, 0f, 89f + i * 1.4f), i * 23f);
+                Item(new Vector3(20f, 0f, 94.5f), Pickup.Kind.FlashBulbs);
+                Item(new Vector3(20.5f, 0f, 89.5f), Pickup.Kind.Lens);
+                if (night >= 3) Moths(new Vector3(22f, 2.4f, 92f));
+                StreetLamp(new Vector3(-15.8f, 0f, 86f), 90f);
+                StreetLamp(new Vector3(15.8f, 0f, 67f), -90f);
+            }
+        }
+
+        // Solid furniture (it blocks him and the NavMesh) if it's in tonight's town.
+        private void Furniture(string name, Vector3 at, Vector3 size, Material material = null)
+        {
+            if (Open(at)) Cube(name, at, size, material != null ? material : wood);
+        }
+
+        private void Barrel(Vector3 at, float scale)
+        {
+            if (Open(at)) HushwaterAssets.Model("Barrel_01", at, Random.Range(0f, 360f), scale);
+        }
+
+        private void Note(Vector3 at, float yaw, string title, string body, bool onWall = false)
+        {
+            if (Dry(at)) Readable.Build(at, yaw, title, body, onWall);
+        }
+
+        // A sheet still pegged on a washing line; it sways and blocks sight lines, not movement.
+        private void Sheet(Vector3 at)
+        {
+            if (!Dry(at)) return;
+            GameObject sheet = Cube("Washing", at + Vector3.up * 1.35f, new Vector3(1.1f, 1.3f, 0.02f), paper);
+            Object.DestroyImmediate(sheet.GetComponent<Collider>());
+            sheet.AddComponent<Sway>();
+            GameObject line = Cube("Washing Line", at + Vector3.up * 2.02f, new Vector3(1.35f, 0.015f, 0.015f), dark);
+            Object.DestroyImmediate(line.GetComponent<Collider>());
+        }
+
         // ---------- The Dam Works ----------
 
         private void BuildDamWorks()
@@ -512,6 +676,7 @@ namespace Hushwater
                     default: EvidencePickup(spot, new Vector3(0.32f, 0.14f, 0.22f), dark, "tape recorder"); break;
                 }
                 PatrolPoints.Add(new Vector3(spot.Position.x, 0f, spot.Position.z));
+                EvidenceBeacon.Build(spot);
             }
         }
 
@@ -622,10 +787,14 @@ namespace Hushwater
             moon.color = new Color(0.6f, 0.7f, 0.85f);
             moon.intensity = 0.35f;
             moon.shadows = LightShadows.Soft;
-            RenderSettings.ambientLight = new Color(0.08f, 0.1f, 0.12f) * GameSettings.Brightness;
+            // Flat ambient: in the default Skybox mode the colour below is ignored and Unity's bright default sky lights everything.
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientLight = new Color(0.11f, 0.13f, 0.16f) * GameSettings.Brightness;
             RenderSettings.fog = true;
             RenderSettings.fogColor = UiKit.Night;
-            RenderSettings.fogDensity = 0.05f;
+            RenderSettings.fogDensity = 0.042f;
+            // Wet surfaces would otherwise mirror Unity's bright default sky.
+            RenderSettings.reflectionIntensity = 0.12f;
         }
 
         // ---------- The Sexton's route and the NavMesh ----------
@@ -654,7 +823,7 @@ namespace Hushwater
         {
             float south = Mathf.Max(TownLayout.Shoreline(night), TownLayout.MillrowStart) + 0.3f;
             float north = TownLayout.NorthLimit(night) - 1f;
-            var bounds = new Bounds(new Vector3(0f, 1f, (south + north) * 0.5f), new Vector3(32f, 8f, north - south));
+            var bounds = new Bounds(new Vector3(0f, 1f, (south + north) * 0.5f), new Vector3(2f * TownLayout.HalfWidth + 2f, 8f, north - south));
             // Everything was built this frame: push the new transforms into physics before reading colliders.
             Physics.SyncTransforms();
             var sources = new List<NavMeshBuildSource>();

@@ -133,6 +133,26 @@ namespace Hushwater
             return (Sin(root, t) + 0.6f * Sin(root * 1.19f, t) + 0.5f * Sin(root * 1.5f, t) + 0.3f * Sin(root * 2.02f, t)) * envelope * 0.12f;
         });
 
+        // A heartbeat: lub-dub, low and muffled, for when he's close.
+        public static AudioClip Heartbeat => Get("Heartbeat", 0.45f, t =>
+            (Sin(48f, t) * Mathf.Exp(-t * 28f) + 0.7f * Sin(42f, t - 0.16f) * (t > 0.16f ? Mathf.Exp(-(t - 0.16f) * 30f) : 0f)) * 0.9f);
+
+        // A crow's caw: two harsh, noisy rasps.
+        public static AudioClip Caw => Get("Caw", 0.7f, t =>
+        {
+            float env = Mathf.Exp(-Mathf.Pow((t % 0.33f) - 0.08f, 2f) * 300f) * (t < 0.62f ? 1f : 0f);
+            float pitch = 620f - 260f * (t % 0.33f);
+            return (Sin(pitch, t) * 0.5f + Sin(pitch * 2.03f, t) * 0.3f + Noise() * 0.35f) * Mathf.Sign(Sin(pitch * 0.5f, t)) * env * 0.5f;
+        });
+
+        // Wings beating as a bird takes off.
+        public static AudioClip Flap => Get("Flap", 0.9f, t =>
+            Noise() * Mathf.Abs(Mathf.Sin(t * 2f * Mathf.PI * 9f)) * Mathf.Exp(-t * 3f) * 0.45f);
+
+        // A page turned over: a short dry rustle.
+        public static AudioClip Rustle => Get("Rustle", 0.4f, t =>
+            Noise() * Mathf.Exp(-Mathf.Pow(t - 0.12f, 2f) * 120f) * 0.35f);
+
         // Tape hiss for Emil's recordings at the boat.
         public static AudioClip TapeHiss => Get("TapeHiss", 3f, t => Noise() * 0.06f * Mathf.Clamp01(t * 4f) * Mathf.Clamp01((3f - t) * 4f));
 

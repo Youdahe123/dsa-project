@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Hushwater
 {
     // What made a sound. Used for captions, the HUD ripple and the debug view.
-    public enum NoiseKind { Creep, Walk, Mud, Sprint, Gasp, Crank, Door, Rummage, Salts, Bottle, Handbell, Photo, Flash, Whine, Wail, Hiss, Struggle, Fall, Generator, Spillway, Cabinet, Splash }
+    public enum NoiseKind { Creep, Walk, Mud, Sprint, Gasp, Crank, Door, Rummage, Salts, Bottle, Handbell, Photo, Flash, Whine, Wail, Hiss, Struggle, Fall, Generator, Spillway, Cabinet, Splash, Voice }
 
     // One sound in the world: where it happened, how far away it can be heard, and what it was.
     public readonly struct NoiseEvent
@@ -101,6 +101,7 @@ namespace Hushwater
                 case NoiseKind.Generator: return "generator";
                 case NoiseKind.Spillway: return "spillway wheel";
                 case NoiseKind.Cabinet: return "forcing a cabinet";
+                case NoiseKind.Voice: return "your voice (mic)";
                 default: return "splashing";
             }
         }

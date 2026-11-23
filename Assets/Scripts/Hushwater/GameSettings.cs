@@ -19,6 +19,11 @@ namespace Hushwater
         public static float MasterVolume = 0.8f;
         public static float Brightness = 1f;
         public static float LookSensitivity = 1f;
+        // Ours: the real microphone as in-game noise, and the Sexton's dot on the minimap.
+        public static bool MicEnabled = true;
+        public static string MicDevice = "";
+        public static float MicSensitivity = 1f;
+        public static bool SextonOnMinimap = true;
 
         private static bool loaded;
 
@@ -33,6 +38,10 @@ namespace Hushwater
             MasterVolume = PlayerPrefs.GetFloat("Hushwater.Volume", 0.8f);
             Brightness = PlayerPrefs.GetFloat("Hushwater.Brightness", 1f);
             LookSensitivity = PlayerPrefs.GetFloat("Hushwater.Look", 1f);
+            MicEnabled = PlayerPrefs.GetInt("Hushwater.Mic", 1) == 1;
+            MicDevice = PlayerPrefs.GetString("Hushwater.MicDevice", "");
+            MicSensitivity = PlayerPrefs.GetFloat("Hushwater.MicSensitivity", 1f);
+            SextonOnMinimap = PlayerPrefs.GetInt("Hushwater.SextonDot", 1) == 1;
             Apply();
         }
 
@@ -45,6 +54,10 @@ namespace Hushwater
             PlayerPrefs.SetFloat("Hushwater.Volume", MasterVolume);
             PlayerPrefs.SetFloat("Hushwater.Brightness", Brightness);
             PlayerPrefs.SetFloat("Hushwater.Look", LookSensitivity);
+            PlayerPrefs.SetInt("Hushwater.Mic", MicEnabled ? 1 : 0);
+            PlayerPrefs.SetString("Hushwater.MicDevice", MicDevice ?? "");
+            PlayerPrefs.SetFloat("Hushwater.MicSensitivity", MicSensitivity);
+            PlayerPrefs.SetInt("Hushwater.SextonDot", SextonOnMinimap ? 1 : 0);
             PlayerPrefs.Save();
             Apply();
         }
@@ -52,7 +65,9 @@ namespace Hushwater
         private static void Apply()
         {
             AudioListener.volume = MasterVolume;
-            RenderSettings.ambientLight = new Color(0.08f, 0.1f, 0.12f) * Brightness;
+            // Flat ambient: in the default Skybox mode the colour below is ignored and Unity's bright default sky lights everything.
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientLight = new Color(0.11f, 0.13f, 0.16f) * Brightness;
         }
 
         // Called at the start of every night to lock in the selected difficulty.

@@ -162,6 +162,7 @@ namespace Hushwater
             Listened?.Invoke(noise, heard, walls, reach);
             if (!heard) return;
             lastHeardTime = Time.time;
+            body.Heard(noise.Position);
 
             if (noise.IsLure)
             {

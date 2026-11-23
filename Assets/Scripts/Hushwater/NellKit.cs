@@ -26,6 +26,26 @@ namespace Hushwater
             return subject;
         }
 
+        // How close Nell has to be to photograph a scene with E.
+        public const float SnapReach = 4f;
+
+        // The nearest scene not yet photographed within reach (for E), or null.
+        public static PhotoSubject Near(Vector3 position, float reach)
+        {
+            PhotoSubject best = null;
+            float bestDistance = reach;
+            foreach (PhotoSubject subject in All)
+            {
+                if (Campaign.Has(subject.Spot.Id)) continue;
+                Vector3 to = subject.transform.position - position;
+                to.y = 0f;
+                if (to.magnitude > bestDistance) continue;
+                best = subject;
+                bestDistance = to.magnitude;
+            }
+            return best;
+        }
+
         // The subject closest to the centre of the frame, if one is close enough, in view and not yet photographed.
         public static PhotoSubject InFrame(Camera camera, float maxDistance, float maxAngle)
         {
@@ -55,8 +75,10 @@ namespace Hushwater
     {
         public const int ExposuresPerNight = 12;
         // Not in the doc: how likely a no-flash shot of a dark scene is to come out sharp enough. Tune in playtests.
-        private const float DarkShotChance = 0.35f;
-        private const float Reach = 7f;
+        // (Raised from 0.35, 7 m and 14° after playtesting: photos were too hard to land.)
+        private const float DarkShotChance = 0.6f;
+        private const float Reach = 12f;
+        private const float Aim = 24f;
 
         private PlayerController player;
         private Camera view;
@@ -105,7 +127,7 @@ namespace Hushwater
             Raised = usable && GameInput.CameraHeld;
             player.CameraRaised = Raised;
             view.fieldOfView = Mathf.Lerp(view.fieldOfView, Raised ? baseFov * 0.7f : baseFov, Time.deltaTime * 10f);
-            Framed = Raised ? PhotoSubject.InFrame(view, Reach, 14f) : null;
+            Framed = Raised ? PhotoSubject.InFrame(view, Reach, Aim) : null;
 
             if (Charging)
             {
@@ -119,6 +141,18 @@ namespace Hushwater
                 player.Notify(FlashOn ? "Flash on: a clear shot, but 20 m of noise." : "Flash off: 4 m of noise, but dark scenes may blur.");
             }
             if (Raised && GameInput.ShutterDown) Shoot();
+        }
+
+        // E beside a scene: Nell lifts the camera and takes the shot herself. Always comes out (a quick, quiet
+        // 4 m shutter, no flash), and uses an exposure if she has one left. (Ours: aiming was too fiddly.)
+        public void Snap(PhotoSubject subject)
+        {
+            if (subject == null || Campaign.Has(subject.Spot.Id)) return;
+            if (Exposures > 0) Exposures--;
+            source.PlayOneShot(ProceduralSounds.Shutter, 0.8f);
+            flashGlow = 0.35f;
+            NoisePulse.Emit(transform.position, NoisePulse.Photo, NoiseKind.Photo);
+            player.CollectEvidence(subject.Spot, subject.transform.position);
         }
 
         // Left mouse with the camera up. With the flash on, it charges first (unless there is a spare bulb).
@@ -182,7 +216,7 @@ namespace Hushwater
             }
             else NoisePulse.Emit(transform.position, NoisePulse.Photo, NoiseKind.Photo);
 
-            PhotoSubject subject = PhotoSubject.InFrame(view, Reach, 14f);
+            PhotoSubject subject = PhotoSubject.InFrame(view, Reach, Aim);
             if (subject == null)
             {
                 player.Notify($"Nothing worth a picture there. {Exposures} exposures left.");
@@ -201,9 +235,9 @@ namespace Hushwater
     // with no cranking, moths drain it, and turning the light to zero scatters them.
     public sealed class NellLantern : MonoBehaviour
     {
-        // Not in the doc: the lantern holds 10 charges and burns one every 30 s, so a full lantern lasts 5 minutes.
+        // Not in the doc: the lantern holds 10 charges and burns one every 60 s, so a full lantern lasts 10 minutes.
         public const float MaxCharge = 10f;
-        private const float SecondsPerCharge = 30f;
+        private const float SecondsPerCharge = 60f;
         private const float ChargePerHalfTurn = 0.5f;
 
         private PlayerController player;
@@ -211,7 +245,8 @@ namespace Hushwater
         private float crankTimer;
         private float baseIntensity;
 
-        public float Charge { get; private set; } = 6f;
+        // She rows in with it fully wound.
+        public float Charge { get; private set; } = MaxCharge;
         public bool On { get; private set; } = true;
         public bool Lit => On && Charge > 0f && !player.Underwater;
         public bool Full => Charge >= MaxCharge - 0.01f;
@@ -241,7 +276,8 @@ namespace Hushwater
             if (Lit) Charge = Mathf.Max(0f, Charge - Time.deltaTime / SecondsPerCharge);
             if (lamp != null)
             {
-                float strength = Lit ? Mathf.Lerp(0.35f, 1f, Mathf.Clamp01(Charge / 2f)) : 0f;
+                // Bright until the last charge or so, then it dims (never below about half) and flickers.
+                float strength = Lit ? Mathf.Lerp(0.55f, 1f, Mathf.Clamp01(Charge / 1.5f)) : 0f;
                 // A guttering flicker as it runs low.
                 if (Lit && Charge < 1f) strength *= 0.75f + 0.25f * Mathf.PerlinNoise(Time.time * 8f, 0f);
                 lamp.intensity = baseIntensity * strength;
@@ -264,5 +300,28 @@ namespace Hushwater
 
         // Lantern moths feeding.
         public void Drain(float charges) => Charge = Mathf.Max(0f, Charge - charges);
+    }
+
+    // The forward beam brightens and dims with the lantern itself.
+    public sealed class LanternBeam : MonoBehaviour
+    {
+        private Light beam;
+        private Light lamp;
+        private float full;
+        private float lampFull;
+
+        private void Start()
+        {
+            beam = GetComponent<Light>();
+            lamp = transform.parent.GetComponent<Light>();
+            full = beam.intensity;
+            lampFull = lamp != null ? lamp.intensity : 1f;
+        }
+
+        // Read after NellLantern has set the main lamp for this frame.
+        private void LateUpdate()
+        {
+            if (lamp != null) beam.intensity = full * Mathf.Clamp01(lamp.intensity / Mathf.Max(0.01f, lampFull));
+        }
     }
 }

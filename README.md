@@ -2,6 +2,8 @@
 
 Open this folder in Unity 6, open `Assets/Scenes/HushwaterPrototype.unity` and press Play. Everything is built in code at runtime by `HushwaterBootstrap`: menus, the town for each night, the Sexton and the HUD.
 
+Fonts: Special Elite (Apache 2.0) and IM Fell English SC (SIL OFL), in `Assets/Resources/Hushwater/Fonts` with their licences.
+
 Still placeholder: models and animation are primitives and a few Poly Haven props, and sound is generated in code (`ProceduralSounds`). There is no FMOD yet.
 
 ## The game
@@ -38,11 +40,13 @@ Keyboard & mouse, or an Xbox-layout gamepad (axes are set up for Windows in `Pro
 | `L` | R3 | Lantern down to nothing / back up (scatters moths) | |
 | Right mouse | LT | Raise the survey camera (12 exposures a night) | |
 | Left mouse | RT | Take a photo | 4 m, 20 m with flash |
+| `E` by a photo scene | A | Photograph it (always comes out, no aiming) | 4 m |
 | `R` | X | Flash on/off (dark scenes blur without it) | |
 | `1`-`4` / scroll | D-pad | Choose a tool | |
 | `Q` | LB | Throw a bottle or handbell, sniff salts, wrap boots, pour lamp oil | lure 22 m, salts 5 m |
 | `Tab` | View | Journal & map | |
-| `Esc` | Menu | Pause, settings, controls | |
+| `H` | | Show / hide the on-screen guide (What to do, tips) | |
+| `Esc` | Menu | Pause, settings, controls, How to Play | |
 | `F3` | | Noise debug view | |
 
 ## The Sexton
@@ -66,8 +70,17 @@ The HUD never shows where he is. You track him by captions with direction and di
 - `Campaign` / `Story`: the five-night run and its save (PlayerPrefs, at the boat), salvage and upgrades, evidence placement and text, Emil's tapes, endings. `TownLayout` (in `Campaign.cs`) holds the shoreline per night.
 - `NightDirector`: dawn timer, rowing out, losing a night, lantern-post retries, pause and journal, Night 5's transmission, bell and spillway.
 - `Threats`: the Congregation, Silt Hands, Lantern Moths and Eels.
+- `Guide` (ours, not the doc's): the in-night help. A "What to do" checklist with live counts and an arrow to the next target, step-by-step tips on Night 1 (one tip per new threat on later nights), and the proximity warning (banner at 24 / 13 / 7 m or when he hunts, a pointer toward him, red edges, heartbeat).
+- `Instructions`: the five-page illustrated How to Play (story, steps, what to look for, staying alive, controls). It opens before a new game and from the menu, boat and pause screens.
+- `MicListener` / `VoiceMeter` (ours): the real microphone (AirPods, headset or built-in, chosen in Settings; on "System default" a connected AirPods or headset mic is preferred) as in-game noise, at a sample rate the device supports (AirPods: 24 kHz). Loudness above the room's own background becomes a noise radius at Nell, up to 30 m for a shout, and the bottom-left MIC bar shows it. The first 3 s calibrate to the room.
+- `Minimap` (ours; the doc never shows him): top right, turns with Nell, 30 m to the edge. Shows the explored map, the boat and the Sexton as a red dot (pinned to the rim when he's further away). It can be turned off in Settings.
+- `EvidenceBeacon` (ours): every uncollected piece of evidence has a golden column of light, a floating camera/page/tape icon and a warm light. The guide puts a gold marker on screen over the nearest piece you still need (with distance, which building it's in, and how to take it). The camera counts subjects within 12 m and 24° (was 7 m / 14°), and dark scenes come out 60% of the time without flash (was 35%).
+- `Icons`: flat icons drawn in code (lantern, boat, camera, page, tape, wardrobe, Sexton and so on), used by the guide, How to Play and the map legend.
 - `NellKit`: the survey camera and Nell's crank lantern. `TownObjects`: cabinets, ladders, the boat, radio door, transmitter, spillway, rotten floors, water volumes.
 - `Screens`: main menu, boat, journal & map, settings, endings. `HudController` / `PauseMenu` / `UiKit`: the HUD and Esc menu.
+- `Scenery`: the valley around the town (moon, stars, ridges, horizon glow), telegraph wires, dead trees, wreckage, crows that scatter when Nell or the Sexton comes near, ground mist, and the 3D backdrops behind the menu, boat and ending screens.
+- `Readable` (in `TownObjects`): letters, notices and logs in the back-lane buildings. Hold E to read; they tell the story but aren't evidence.
+- `SextonBody`: his 2.4 m stooped body, built and animated in code (stride, swinging coat strips, head turning toward sounds, hook, handbell, dripping water) until the real rig exists.
 - `GameInput`: keyboard, mouse and gamepad in one place.
 - `GameSettings`: difficulty table from the design doc plus volume, brightness, look sensitivity and the accessibility toggles.
 - `NoiseDebugView`: F3 draws each pulse's effective radius (rust if he heard it), his NavMesh path and his state.

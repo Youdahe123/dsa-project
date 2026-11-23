@@ -412,4 +412,154 @@ namespace Hushwater
             return false;
         }
     }
+
+    // Something left behind that Nell can read: a letter, a calendar, a notice. Not evidence (it isn't banked or
+    // counted); it tells the town's story to anyone who goes looking. Reading is silent and can be repeated.
+    public sealed class Readable : Interactable
+    {
+        private string title;
+        private string body;
+
+        // The HUD shows the paper while it's open.
+        public static event System.Action<string, string> Opened;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetEvents() => Opened = null;
+
+        public override float Reach => 1.8f;
+        public override KeyCode Key => KeyCode.E;
+        public override float HoldSeconds => 0.25f;
+        public override string Prompt => $"Hold E to read the {title.ToLowerInvariant()}";
+        public override bool Available => true;
+
+        public static Readable Build(Vector3 at, float yaw, string title, string body, bool onWall)
+        {
+            GameObject paper = GameObject.CreatePrimitive(onWall ? PrimitiveType.Quad : PrimitiveType.Cube);
+            paper.name = "Readable: " + title;
+            Object.DestroyImmediate(paper.GetComponent<Collider>());
+            paper.transform.SetPositionAndRotation(at, Quaternion.Euler(0f, yaw, 0f));
+            paper.transform.localScale = onWall ? new Vector3(0.45f, 0.6f, 1f) : new Vector3(0.24f, 0.01f, 0.32f);
+            Material m = new Material(Shader.Find("Standard")) { color = new Color(0.72f, 0.68f, 0.58f) };
+            m.SetFloat("_Glossiness", 0.05f);
+            paper.GetComponent<Renderer>().sharedMaterial = m;
+            // A faint warm glint so loose papers can be found in the dark, as evidence can.
+            Light glint = new GameObject("Paper Glint").AddComponent<Light>();
+            glint.transform.SetParent(paper.transform, false);
+            glint.transform.position = at + Vector3.up * 0.4f + paper.transform.forward * (onWall ? -0.3f : 0f);
+            glint.type = LightType.Point;
+            glint.range = 1.4f;
+            glint.intensity = 0.5f;
+            glint.color = new Color(0.9f, 0.85f, 0.7f);
+            Readable r = paper.AddComponent<Readable>();
+            r.title = title;
+            r.body = body;
+            return r;
+        }
+
+        public override void Complete(PlayerController player)
+        {
+            ProceduralSounds.PlayAt(ProceduralSounds.Rustle, transform.position, 0.7f);
+            Opened?.Invoke(title, body);
+        }
+    }
+}
+
+namespace Hushwater
+{
+    // Makes evidence easy to spot (ours): a soft golden column of light you can see down the street, a floating icon
+    // of what it is (camera, page or tape), and a warm light on the spot. It all goes once the evidence is taken.
+    public sealed class EvidenceBeacon : MonoBehaviour
+    {
+        private EvidenceSpot spot;
+        private Transform icon, shaft;
+        private SpriteRenderer iconRenderer;
+        private float seed;
+
+        public static void Build(EvidenceSpot spot)
+        {
+            var root = new GameObject("Beacon: " + spot.Title);
+            root.transform.position = new Vector3(spot.Position.x, spot.Position.y, spot.Position.z);
+            EvidenceBeacon beacon = root.AddComponent<EvidenceBeacon>();
+            beacon.spot = spot;
+            beacon.seed = UnityEngine.Random.value * 10f;
+
+            GameObject column = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            UnityEngine.Object.DestroyImmediate(column.GetComponent<Collider>());
+            column.name = "Shaft";
+            column.transform.SetParent(root.transform, false);
+            column.transform.localPosition = Vector3.up * 3.2f;
+            column.transform.localScale = new Vector3(1.1f, 6.5f, 1f);
+            column.GetComponent<Renderer>().sharedMaterial = ShaftMaterial;
+            beacon.shaft = column.transform;
+
+            var iconObject = new GameObject("Icon");
+            iconObject.transform.SetParent(root.transform, false);
+            iconObject.transform.localPosition = Vector3.up * 2.1f;
+            iconObject.transform.localScale = Vector3.one * 0.42f;
+            beacon.iconRenderer = iconObject.AddComponent<SpriteRenderer>();
+            beacon.iconRenderer.sprite = Icons.Get(spot.Type == EvidenceType.Photo ? Icons.Kind.Camera : spot.Type == EvidenceType.Page ? Icons.Kind.Page : Icons.Kind.Tape);
+            beacon.iconRenderer.color = new Color(1f, 0.82f, 0.45f, 0.95f);
+            beacon.icon = iconObject.transform;
+
+            Light light = new GameObject("Evidence Light").AddComponent<Light>();
+            light.transform.SetParent(root.transform, false);
+            light.transform.localPosition = Vector3.up * 1.3f;
+            light.color = new Color(1f, 0.8f, 0.45f);
+            light.range = 4.5f;
+            light.intensity = 1.6f;
+            light.shadows = LightShadows.None;
+        }
+
+        private static Material shaftMaterial;
+        private static Material ShaftMaterial
+        {
+            get
+            {
+                if (shaftMaterial != null) return shaftMaterial;
+                // A soft vertical gradient: bright at the ground, fading upward and at the sides.
+                const int w = 32, h = 128;
+                var tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+                var px = new Color[w * h];
+                for (int y = 0; y < h; y++)
+                    for (int x = 0; x < w; x++)
+                    {
+                        float across = 1f - Mathf.Abs((x + 0.5f) / w * 2f - 1f);
+                        float up = 1f - (float)y / h;
+                        px[y * w + x] = new Color(1f, 1f, 1f, across * across * up * up);
+                    }
+                tex.SetPixels(px);
+                tex.Apply();
+                shaftMaterial = new Material(Shader.Find("Legacy Shaders/Particles/Additive") ?? Shader.Find("Sprites/Default"))
+                {
+                    mainTexture = tex,
+                    renderQueue = 3100
+                };
+                shaftMaterial.SetColor("_TintColor", new Color(0.55f, 0.42f, 0.18f, 0.5f));
+                shaftMaterial.color = new Color(1f, 0.8f, 0.4f, 0.35f);
+                return shaftMaterial;
+            }
+        }
+
+        private void LateUpdate()
+        {
+            if (Campaign.Has(spot.Id)) { Destroy(gameObject); return; }
+            Camera cam = Camera.main;
+            if (cam == null) return;
+            // Both turn to face the camera around the vertical axis only.
+            Vector3 to = cam.transform.position - transform.position;
+            to.y = 0f;
+            if (to.sqrMagnitude > 0.01f)
+            {
+                Quaternion face = Quaternion.LookRotation(-to);
+                shaft.rotation = face;
+                icon.rotation = face;
+            }
+            float t = Time.time + seed;
+            icon.localPosition = Vector3.up * (2.1f + Mathf.Sin(t * 2f) * 0.12f);
+            // Fade the shaft when she's standing in it, so it doesn't blind her.
+            float near = Mathf.Clamp01((to.magnitude - 1.5f) / 4f);
+            shaft.localScale = new Vector3(1.1f * (0.9f + 0.1f * Mathf.Sin(t * 3f)), 6.5f, 1f);
+            shaft.gameObject.SetActive(near > 0.05f);
+        }
+    }
 }

@@ -47,6 +47,11 @@ namespace Hushwater
         private Text prompt;
         private Image holdFill;
         private Text toast;
+        // A note Nell is reading: a sheet of paper in the middle of the screen.
+        private GameObject notePanel;
+        private Text noteTitle, noteBody;
+        private float noteTime;
+        private Vector3 noteFrom;
         private Text captions;
         private Text stance;
         private Text lastSound;
@@ -108,6 +113,13 @@ namespace Hushwater
             BuildCentre();
             BuildToolSlots();
             BuildCaptionsAndHints();
+            BuildNotePanel();
+            gameObject.AddComponent<Guide>().Build(root, player, sexton, director);
+            gameObject.AddComponent<Minimap>().Build(root, player, sexton, director);
+            MicListener mic = gameObject.AddComponent<MicListener>();
+            mic.Begin(player);
+            gameObject.AddComponent<VoiceMeter>().Build(root, mic, director);
+            UiKit.Vignette(root, 0.75f);
             fadeOverlay = UiKit.Overlay(root, new Color(0f, 0f, 0f, 0f));
             BuildEndPanel();
             gameObject.AddComponent<PauseMenu>().Build(root, director);
@@ -116,6 +128,8 @@ namespace Hushwater
             sexton.MadeSound += OnSextonSound;
             player.Notified += ShowToast;
             director.BellTolled += OnChapelBell;
+            Readable.Opened += OnReadable;
+            Crow.Scattered += OnCrows;
             int n = Campaign.Night;
             ShowToast($"Night {n}: {Story.NightDistricts[n]}. {Story.NightPressure[n]}");
             ShowToast(n == 5 ? "Get to the radio room in the dam, start the transmitter, and hold out for 90 seconds."
@@ -129,7 +143,46 @@ namespace Hushwater
             if (sexton != null) sexton.MadeSound -= OnSextonSound;
             if (player != null) player.Notified -= ShowToast;
             if (director != null) director.BellTolled -= OnChapelBell;
+            Readable.Opened -= OnReadable;
+            Crow.Scattered -= OnCrows;
         }
+
+        private void BuildNotePanel()
+        {
+            Image paper = UiKit.Box(root, new Color(0.8f, 0.76f, 0.66f, 0.97f), new Vector2(0.5f, 0.5f), new Vector2(0f, 30f), new Vector2(640f, 520f));
+            UiKit.Frame(paper.transform, new Color(0.35f, 0.28f, 0.17f, 0.9f), 3f);
+            notePanel = paper.gameObject;
+            Color ink = new Color(0.14f, 0.11f, 0.08f);
+            noteTitle = UiKit.Text(paper.transform, "", 30, new Vector2(0.5f, 1f), new Vector2(0f, -50f), TextAnchor.MiddleCenter, new Vector2(560f, 50f), ink);
+            noteTitle.font = UiKit.TitleFont;
+            noteBody = UiKit.Text(paper.transform, "", 21, new Vector2(0.5f, 1f), new Vector2(0f, -280f), TextAnchor.UpperLeft, new Vector2(540f, 380f), ink);
+            noteBody.lineSpacing = 1.1f;
+            foreach (Text t in new[] { noteTitle, noteBody }) Object.Destroy(t.GetComponent<Shadow>());
+            UiKit.Text(paper.transform, "walk away to put it down", 15, new Vector2(0.5f, 0f), new Vector2(0f, 24f), TextAnchor.MiddleCenter, new Vector2(500f, 24f), UiKit.Fade(ink, 0.6f))
+                .GetComponent<Shadow>().enabled = false;
+            notePanel.SetActive(false);
+        }
+
+        private void OnReadable(string title, string body)
+        {
+            noteTitle.text = char.ToUpperInvariant(title[0]) + title.Substring(1);
+            noteBody.text = body;
+            noteTime = 6f + body.Length / 22f;
+            noteFrom = player.transform.position;
+            notePanel.SetActive(true);
+        }
+
+        // Down when she walks off, when time's up, or when anything else needs the screen.
+        private void UpdateNote()
+        {
+            if (!notePanel.activeSelf) return;
+            noteTime -= Time.deltaTime;
+            bool away = Vector3.Distance(player.transform.position, noteFrom) > 2.5f;
+            if (noteTime <= 0f || away || player.IsDead || player.IsHiding || director.Result != NightDirector.Outcome.Playing)
+                notePanel.SetActive(false);
+        }
+
+        private void OnCrows(Vector3 where) => AddCaption("crows", "crows burst from a roof, cawing", where);
 
         // Tonight's evidence target as words, e.g. "2 photographs and 2 register pages".
         private static string NeedText()
@@ -237,7 +290,7 @@ namespace Hushwater
             captions.supportRichText = true;
             stance = UiKit.Text(root, "", 18, Vector2.zero, new Vector2(36f, 30f), TextAnchor.LowerLeft, new Vector2(500f, 26f), UiKit.Paper);
             lastSound = UiKit.Text(root, "", 16, Vector2.zero, new Vector2(36f, 58f), TextAnchor.LowerLeft, new Vector2(500f, 24f), Color.clear);
-            hint = UiKit.Text(root, "Esc  pause & controls      Tab  journal & map      F3  noise debug view", 16, new Vector2(1f, 0f), new Vector2(-36f, 30f),
+            hint = UiKit.Text(root, "Esc  pause & controls      Tab  journal & map      H  guide      F3  noise view", 16, new Vector2(1f, 0f), new Vector2(-36f, 30f),
                 TextAnchor.LowerRight, new Vector2(700f, 24f), UiKit.Fade(UiKit.Paper, 0.75f));
         }
 
@@ -283,6 +336,7 @@ namespace Hushwater
             UpdateRipples();
             UpdateCaptions();
             UpdateToast();
+            UpdateNote();
 
             stance.text = Stance();
             hint.enabled = director.Result == NightDirector.Outcome.Playing;
@@ -399,6 +453,11 @@ namespace Hushwater
             {
                 Pickup pickup = player.NearbyPickup;
                 prompt.text = $"E  pick up the {pickup.Label}";
+                return;
+            }
+            if (player.NearbyPhoto != null)
+            {
+                prompt.text = $"E  photograph it: {player.NearbyPhoto.Spot.Title}";
                 return;
             }
             if (player.NearHideSpot && !player.Underwater)

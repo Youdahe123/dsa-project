@@ -71,15 +71,30 @@ namespace Hushwater
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = RenderSettings.fogColor;
             camera.nearClipPlane = 0.05f;
+            // Far enough for the moon, stars and the valley ridges (they ignore fog; the town doesn't).
+            camera.farClipPlane = 600f;
             cameraObject.AddComponent<AudioListener>();
+            // Nell's crank lantern: a warm glow all round her, bright enough to read the street by.
             Light lantern = cameraObject.AddComponent<Light>();
             lantern.type = LightType.Point;
-            lantern.color = new Color(1f, 0.75f, 0.45f);
-            lantern.range = 7f;
-            lantern.intensity = 1.2f;
+            lantern.color = new Color(1f, 0.8f, 0.55f);
+            lantern.range = 14f;
+            lantern.intensity = 2.4f;
+            lantern.shadows = LightShadows.None;
+            // Plus a wide beam ahead, the way a lantern held up throws light where you look.
+            Light beam = new GameObject("Lantern Beam").AddComponent<Light>();
+            beam.transform.SetParent(cameraObject.transform, false);
+            beam.transform.localPosition = new Vector3(0.25f, -0.2f, 0.1f);
+            beam.type = LightType.Spot;
+            beam.color = new Color(1f, 0.82f, 0.6f);
+            beam.spotAngle = 75f;
+            beam.range = 24f;
+            beam.intensity = 2f;
+            beam.gameObject.AddComponent<LanternBeam>();
             PlayerController player = playerObject.AddComponent<PlayerController>();
             playerObject.AddComponent<SurveyCamera>();
             playerObject.AddComponent<NellLantern>();
+            new GameObject("Ground Mist", typeof(GroundMist)).transform.SetParent(playerObject.transform, false);
             return player;
         }
 

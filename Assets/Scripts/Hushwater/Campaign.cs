@@ -9,7 +9,8 @@ namespace Hushwater
     public static class TownLayout
     {
         public const float MillrowStart = -16f, ChapelHillStart = 24f, DamWorksStart = 62f, DamWall = 100f;
-        public const float HalfWidth = 15f;
+        // The main road, the houses either side, then a back lane and a second row of buildings each side.
+        public const float HalfWidth = 27f;
 
         // Rope ladder spots: the foot of the ladder against a wall, and the middle of the roof it leads to.
         public static readonly Vector3[] LadderSpots =
@@ -98,7 +99,7 @@ namespace Hushwater
         }
 
         // The doc's town runs south to north: Millrow, Chapel Hill, then the Dam Works. 2 m map cells.
-        public const float MapMinX = -15f, MapMaxX = 15f, MapMinZ = -16f, MapMaxZ = 100f, MapCell = 2f;
+        public const float MapMinX = -TownLayout.HalfWidth, MapMaxX = TownLayout.HalfWidth, MapMinZ = -16f, MapMaxZ = 100f, MapCell = 2f;
         public static readonly int MapWidth = Mathf.CeilToInt((MapMaxX - MapMinX) / MapCell);
         public static readonly int MapHeight = Mathf.CeilToInt((MapMaxZ - MapMinZ) / MapCell);
 
@@ -170,6 +171,7 @@ namespace Hushwater
             return true;
         }
 
+        // Writes the whole run to PlayerPrefs as JSON. Only called at the boat, so dying rolls back to here.
         public static void Save()
         {
             data.map = EncodeMap();
@@ -179,6 +181,7 @@ namespace Hushwater
 
         // ---------- Evidence ----------
 
+        // Two tiers: FoundTonight is at risk until she rows out; data.evidence is banked for good.
         // True if the piece is banked or was found tonight.
         public static bool Has(string id) => data.evidence.Contains(id) || FoundTonight.Contains(id);
         public static bool Banked(string id) => data.evidence.Contains(id);
@@ -376,6 +379,7 @@ namespace Hushwater
         // Design doc, Night 4: "His routes follow the evidence you took."
         public static IReadOnlyList<Vector3> GuardedSites => data.guardedSites;
 
+        // Records where evidence was taken so the Sexton's later routes pass there (skips spots within 3 m).
         public static void Guard(Vector3 site)
         {
             foreach (Vector3 known in data.guardedSites)
@@ -412,6 +416,8 @@ namespace Hushwater
             if (map != null) return;
             map = new bool[MapWidth * MapHeight];
             string saved = data.map ?? "";
+            // A map drawn before the town was widened has a different row length: start it fresh.
+            if (saved.Length != map.Length) saved = "";
             for (int i = 0; i < map.Length && i < saved.Length; i++) map[i] = saved[i] == '1';
         }
 

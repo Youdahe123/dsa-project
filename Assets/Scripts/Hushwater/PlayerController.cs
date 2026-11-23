@@ -99,6 +99,8 @@ namespace Hushwater
         public HideSpot NearbyHideSpot => nearbyHideSpot;
         public HideSpot CurrentHideSpot { get; private set; }
         public Pickup NearbyPickup { get; private set; }
+        // A photo scene close enough to photograph with E.
+        public PhotoSubject NearbyPhoto { get; private set; }
         // The hold-to-use object in reach (lantern post, barred door, crate, cabinet...) and how far the hold has got.
         public Interactable FocusedInteractable { get; private set; }
         public float HoldProgress { get; private set; }
@@ -170,9 +172,11 @@ namespace Hushwater
 
             // E picks up whatever is closest first, otherwise hides; hold-to-use objects come last.
             NearbyPickup = Pickup.Nearest(transform.position, PickupReach);
+            NearbyPhoto = Underwater ? null : PhotoSubject.Near(transform.position, PhotoSubject.SnapReach);
             if (GameInput.Down(KeyCode.E))
             {
                 if (NearbyPickup != null) Collect(NearbyPickup);
+                else if (NearbyPhoto != null) GetComponent<SurveyCamera>().Snap(NearbyPhoto);
                 else if (nearbyHideSpot != null && !Underwater) EnterHideSpot();
             }
             UpdateHold();
@@ -350,7 +354,7 @@ namespace Hushwater
         {
             Interactable focus = Interactable.Nearest(transform.position);
             // E is already used for pickups and hiding, so those win when they are in reach.
-            if (focus != null && focus.Key == KeyCode.E && (NearbyPickup != null || nearbyHideSpot != null)) focus = null;
+            if (focus != null && focus.Key == KeyCode.E && (NearbyPickup != null || NearbyPhoto != null || nearbyHideSpot != null)) focus = null;
             FocusedInteractable = focus;
 
             if (focus == null || !GameInput.Held(focus.Key))
