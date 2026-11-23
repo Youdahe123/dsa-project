@@ -5,6 +5,9 @@ namespace Hushwater
     // The Sexton's 2.4 m frame, built from primitives and animated in code (no Animator needed).
     public sealed class SextonBody : MonoBehaviour
     {
+        // What his arms are doing, picked by SextonController each frame.
+        public enum Pose { Walk, Hunt, Sweep, Feel, Ring }
+
         private Transform torso;
         private Transform head;
         private Transform leftArm;
@@ -12,11 +15,18 @@ namespace Hushwater
         private float phase;
         private float swipe;
         private float grab;
+        private float smash;
         private bool grabbing;
+        // 0..1 blends for each pose, so changes between poses are smooth.
+        private float sweep;
+        private float feel;
+        private float ring;
 
         // Where a grabbed player's eyes are held: lifted up to his face, just in front of his hands.
         public Vector3 GripPoint => transform.position + transform.forward * 1.25f + Vector3.up * 1.85f;
         public Transform Head => head;
+        // The tip of his hook, which he drags through the mud to feel for Nell's grooves.
+        public Vector3 HookTip => transform.position + transform.forward * 1.1f + transform.right * 0.4f;
 
         // Builds the whole body as children of root (the NavMeshAgent object) and returns its animator.
         public static SextonBody Build(Transform root)
@@ -25,6 +35,8 @@ namespace Hushwater
             Material skin = new Material(Shader.Find("Standard")) { color = new Color(0.45f, 0.47f, 0.42f) };
             Material iron = HushwaterAssets.Surface("rusty_metal_02", new Color(0.35f, 0.32f, 0.3f), 1f, 0.35f);
             Material blindfold = new Material(Shader.Find("Standard")) { color = new Color(0.04f, 0.035f, 0.03f) };
+            Material brass = new Material(Shader.Find("Standard")) { color = new Color(0.45f, 0.36f, 0.18f) };
+            brass.SetFloat("_Metallic", 0.8f);
 
             GameObject visual = new GameObject("Sexton Body");
             visual.transform.SetParent(root, false);
@@ -48,8 +60,12 @@ namespace Hushwater
             Transform hook = Part(PrimitiveType.Cylinder, body.rightArm, "Hook Staff", new Vector3(0f, -1.1f, 0.25f), new Vector3(0.05f, 0.45f, 0.05f), iron).transform;
             hook.localRotation = Quaternion.Euler(30f, 0f, 0f);
 
+            // The chapel bell's iron clapper hangs from his belt; he rings a brass handbell when he tolls.
+            Part(PrimitiveType.Capsule, body.torso, "Clapper", new Vector3(-0.3f, -0.15f, 0.15f), new Vector3(0.08f, 0.14f, 0.08f), iron);
+            Part(PrimitiveType.Cylinder, body.leftArm, "Bell", new Vector3(0f, -1.02f, 0f), new Vector3(0.16f, 0.1f, 0.16f), brass);
+
             // Only the NavMeshAgent should collide; the body is visual.
-            foreach (Collider c in visual.GetComponentsInChildren<Collider>()) Destroy(c);
+            foreach (Collider c in visual.GetComponentsInChildren<Collider>()) DestroyImmediate(c);
             return body;
         }
 
@@ -86,30 +102,53 @@ namespace Hushwater
         // Starts a one-off hook swipe with the right arm; it fades back over about 0.4 s.
         public void Swipe() => swipe = 1f;
 
+        // Both arms come down hard on a barred door.
+        public void Smash() => smash = 1f;
+
         // Raises both arms toward Nell and holds them there for the kill.
         public void Grab() => grabbing = true;
 
-        // Called every frame by SextonController with his current speed.
-        public void Animate(float speed, bool hunting, float dt)
+        // Lets go after a knockdown.
+        public void Release() => grabbing = false;
+
+        // Called every frame by SextonController with his current speed and pose.
+        public void Animate(float speed, Pose pose, float dt)
         {
             phase += dt * (1.5f + speed * 1.6f);
             swipe = Mathf.MoveTowards(swipe, 0f, dt * 2.5f);
+            smash = Mathf.MoveTowards(smash, 0f, dt * 2f);
             grab = Mathf.MoveTowards(grab, grabbing ? 1f : 0f, dt * 4f);
+            sweep = Mathf.MoveTowards(sweep, pose == Pose.Sweep ? 1f : 0f, dt * 3f);
+            feel = Mathf.MoveTowards(feel, pose == Pose.Feel ? 1f : 0f, dt * 3f);
+            ring = Mathf.MoveTowards(ring, pose == Pose.Ring ? 1f : 0f, dt * 3f);
 
-            // Hunched forward when hunting, bobbing with each stride.
-            float lean = Mathf.Lerp(hunting ? 25f : 10f, 35f, grab);
+            // Hunched forward when hunting, bobbing with each stride. Sweeping and feeling bend him low.
+            float lean = Mathf.Lerp(pose == Pose.Hunt ? 25f : 10f, 35f, Mathf.Max(grab, sweep * 0.8f, feel * 0.7f));
             float bob = Mathf.Abs(Mathf.Sin(phase)) * 0.05f * Mathf.Clamp01(speed);
             torso.localPosition = new Vector3(0f, 1.05f + bob, 0f);
             torso.localRotation = Quaternion.Euler(lean, 0f, Mathf.Sin(phase) * 3f);
 
             // Blind: the head cocks side to side, listening. During a grab it lifts to face Nell.
-            head.localRotation = Quaternion.Euler(Mathf.Lerp(-lean * 0.6f, -lean - 10f, grab), Mathf.Sin(Time.time * 0.7f) * 25f * (1f - grab), 15f + Mathf.Sin(Time.time) * 8f);
+            float listen = Mathf.Sin(Time.time * 0.7f) * 25f * (1f - grab);
+            head.localRotation = Quaternion.Euler(Mathf.Lerp(-lean * 0.6f, -lean - 10f, grab), listen, 15f + Mathf.Sin(Time.time) * 8f);
 
             // Arms swing while walking; a swipe whips the right arm forward; a grab raises both.
             float swing = Mathf.Sin(phase) * 20f * Mathf.Clamp01(speed / 2f);
             float swipeAngle = -Mathf.Sin(swipe * Mathf.PI) * 110f;
-            leftArm.localRotation = Quaternion.Euler(Mathf.Lerp(-swing, -125f, grab), 0f, -6f);
-            rightArm.localRotation = Quaternion.Euler(Mathf.Lerp(swing - 20f + swipeAngle, -125f, grab), 0f, 6f);
+            float smashAngle = -Mathf.Sin(smash * Mathf.PI) * 140f;
+
+            // Sweep: the hook arm drags low, side to side, through the mud.
+            float sweepYaw = Mathf.Sin(Time.time * 2.2f) * 50f * sweep;
+            // Feel: the left hand reaches forward and fumbles, as if into a wardrobe.
+            float fumble = Mathf.Sin(Time.time * 9f) * 8f * feel;
+            // Ring: the left arm lifts the handbell and shakes it.
+            float shake = Mathf.Sin(Time.time * 14f) * 25f * ring;
+
+            float leftPitch = Mathf.Lerp(-swing, -80f + fumble, feel);
+            leftPitch = Mathf.Lerp(leftPitch, -150f + shake, ring) + smashAngle;
+            float rightPitch = Mathf.Lerp(swing - 20f + swipeAngle, -40f, sweep) + smashAngle;
+            leftArm.localRotation = Quaternion.Euler(Mathf.Lerp(leftPitch, -125f, grab), 0f, -6f);
+            rightArm.localRotation = Quaternion.Euler(Mathf.Lerp(rightPitch, -125f, grab), sweepYaw * (1f - grab), 6f);
         }
     }
 }

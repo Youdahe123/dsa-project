@@ -51,7 +51,7 @@ namespace Hushwater
                 Debug.LogWarning($"Hushwater: model '{name}' missing, using a placeholder box.");
                 GameObject box = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 box.transform.SetParent(instance.transform, false);
-                Object.Destroy(box.GetComponent<Collider>());
+                Object.DestroyImmediate(box.GetComponent<Collider>());
             }
 
             Bounds local = LocalBounds(instance);
